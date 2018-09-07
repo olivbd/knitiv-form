@@ -14,7 +14,10 @@ module.exports = function() {
       disableComponents: '=?',
       formioOptions: '=?',
       options: '<',
-      name: '=?'
+      name: '=?',
+      formId: '@?id',
+      pristine: '=?',
+      valid: '=?'
     },
     controller: [
       '$scope',
@@ -172,6 +175,15 @@ module.exports = function() {
           form: true,
           submission: true
         });
+
+        $scope.setFormScope = function(scope) {
+          scope.$watch($scope.formName + '.$valid', function (valid) {
+            $scope.valid = valid;
+          });
+          scope.$watch($scope.formName + '.$pristine', function (pristine) {
+            $scope.pristine = pristine;
+          });
+        };
 
         function validateForm(form) {
           if (form.submitting) {

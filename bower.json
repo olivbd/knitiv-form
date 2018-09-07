@@ -1,14 +1,15 @@
 {
-  "name": "ng-formio",
-  "version": "2.36.4",
+  "name": "knitiv-form",
+  "version": "2.36.5",
   "authors": [
-    "Travis Tidwell <travis@form.io>"
+    "Travis Tidwell <travis@form.io>",
+    "Olivier Béraud <olivierberaud@free.fr"
   ],
   "main": [
     "dist/formio.js",
     "css/formio.css"
   ],
-  "description": "The Form.IO form renderer.",
+  "description": "The Knitiv Form renderer from Form.io.",
   "keywords": [
     "angularjs",
     "ionic",
