@@ -1,3 +1,5 @@
+global.jQuery = require('jquery');
+require('angular');
 require('ui-select/dist/select');
 require('angular-moment');
 require('angular-sanitize');
@@ -9,4 +11,4 @@ require('angular-ckeditor');
 require('bootstrap-ui-datetime-picker/dist/datetime-picker');
 require('ng-dialog');
 require('angular-ui-ace/src/ui-ace');
-require('./formio');
+require('./knitiv-form');

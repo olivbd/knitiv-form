@@ -1,9 +1,11 @@
 module.exports = [
   'Formio',
+  'Promise',
   'formioComponents',
   '$timeout',
   function(
     Formio,
+    Promise,
     formioComponents,
     $timeout
   ) {
@@ -118,7 +120,7 @@ module.exports = [
         var baseUrl = Formio.setScopeBase($scope);
         if ($scope._src) {
           loader = new Formio($scope._src, {base: baseUrl});
-          var submissionPromise = new Promise(function(resolve, reject) {
+          var submissionPromise = new Promise(function(resolve) {
             if (options.submission && loader.submissionId) {
               $scope.setLoading(true);
 

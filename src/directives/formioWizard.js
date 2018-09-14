@@ -87,6 +87,7 @@ module.exports = function() {
               return value ? JSON.parse(value) : false;
             }
             catch (err) {
+              // eslint-disable-next-line no-console
               console.warn('error parsing json from localstorage', err);
             }
           },
@@ -102,7 +103,7 @@ module.exports = function() {
           }
         };
 
-        var session = ($scope.storage && !$scope.readOnly) ? storage.getItem($scope.storage) : false;
+        session = ($scope.storage && !$scope.readOnly) ? storage.getItem($scope.storage) : false;
         $scope.formio = null;
         $scope.url = $scope.url || $scope.src;
         $scope.page = {};
@@ -155,19 +156,18 @@ module.exports = function() {
               }
 
               // if there is a localStorage object && submission.data is blank then bind localStorage to $scope
-              if(storage.getItem($scope.storage) && isEmpty($scope.submission.data) == true){
+              if (storage.getItem($scope.storage) && isEmpty($scope.submission.data) === true) {
                 $scope.submission.data = storage.getItem($scope.storage).data;
               }
 
               // if there is a localStorage object | && it is data | merge the two
-              if(storage.getItem($scope.storage) && isEmpty($scope.submission.data) == false){
+              if (storage.getItem($scope.storage) && isEmpty($scope.submission.data) === false) {
                 storage.setItem($scope.storage, {
                   page: $scope.currentPage,
                   data: $scope.submission.data
                 });
               }
             }
-
 
             $scope.page.components = $scope.pages[$scope.currentPage].components;
             $scope.activePage = $scope.pages[$scope.currentPage];
@@ -383,7 +383,7 @@ module.exports = function() {
         };
 
         $scope.cancel = function() {
-          if(confirm('Are you sure you want to cancel?')){
+          if (confirm('Are you sure you want to cancel?')) {
             $scope.clear();
             FormioUtils.alter('cancel', $scope, function(err) {
               if (err) {

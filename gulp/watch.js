@@ -5,7 +5,7 @@ var path = require('path');
 module.exports = function(gulp, plugins) {
   return function() {
     var bundle = plugins.browserify({
-      entries: './src/formio.js',
+      entries: './src/knitiv-form.js',
       debug: true,
       ignoreMissing: true
     });
@@ -14,7 +14,7 @@ module.exports = function(gulp, plugins) {
     bundle = plugins.watchify(bundle);
     bundle.on('update', function(files) {
       console.log('Changed files: ', files.map(path.relative.bind(path, process.cwd())).join(', '));
-      console.log('Rebuilding dist/formio.js...');
+      console.log('Rebuilding dist/knitiv-form.js...');
       build();
     });
     bundle.on('log', function(msg) {

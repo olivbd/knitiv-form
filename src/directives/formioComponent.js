@@ -330,7 +330,7 @@ module.exports = [
 
           // Allow component keys to look like "settings[username]"
           if ($scope.component.key && $scope.component.key.indexOf('[') !== -1) {
-            var matches = $scope.component.key.match(/([^\[]+)\[([^]+)\]/);
+            var matches = $scope.component.key.match(/([^[]+)\[([^]+)\]/);
             if ((matches.length === 3) && $scope.data.hasOwnProperty(matches[1])) {
               $scope.data = $scope.data[matches[1]];
               $scope.component.key = matches[2];

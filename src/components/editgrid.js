@@ -111,14 +111,14 @@ module.exports = function(app) {
         // Add the control to the main form.
         scope.formioForm.$addControl(ctrl);
 
-        ctrl.$validators.editgrid = function(modelValue, viewValue) {
+        ctrl.$validators.editgrid = function() {
           if (scope.openRows && scope.openRows.length) {
             return false;
           }
           return true;
         };
       }
-    }
+    };
   });
   app.directive('editgridRowValidation', function() {
     return {
@@ -169,7 +169,6 @@ module.exports = function(app) {
             // FOR-255 - Enable row data and form data to be visible in the validator.
             var data = scope.submission.data;
             var row = scope.row;
-            /*eslint-enable no-unused-vars */
 
             var component = scope.component;
             var custom = scope.component.validate.row;
@@ -193,7 +192,7 @@ module.exports = function(app) {
           return true;
         };
       }
-    }
+    };
   });
   app.directive('renderTemplate', function() {
     return {
@@ -204,7 +203,7 @@ module.exports = function(app) {
         data: '=',
         actions: '='
       },
-      link: function(scope, element, attrs) {
+      link: function(scope, element) {
         scope.$watch('data', function() {
           // Render template and set in element's innerHTML.
           element.html(formioUtils.interpolate(scope.template, scope.data));
@@ -217,9 +216,9 @@ module.exports = function(app) {
               });
             });
           }
-        })
+        });
       }
-    }
+    };
   });
   app.directive('editGridRow', function() {
     return {
@@ -288,16 +287,16 @@ module.exports = function(app) {
             $scope.rows[$scope.rowIndex] = $scope.rowData;
             $scope.openRows.splice($scope.openRows.indexOf($scope.rowIndex), 1);
             $scope.formioForm[$scope.componentId].$validate();
-          }
+          };
 
           var editRow = function() {
             $scope.openRows.push($scope.rowIndex);
             $scope.$apply();
-          }
+          };
           var removeRow = function() {
             $scope.removeRow($scope.rowIndex);
             $scope.$apply();
-          }
+          };
           $scope.actions = [
             {
               class: 'removeRow',
@@ -309,7 +308,7 @@ module.exports = function(app) {
               event: 'click',
               action: editRow
             }
-          ]
+          ];
         }
       ],
       template: '' +
@@ -345,7 +344,7 @@ module.exports = function(app) {
       '<div ng-if="openRows.indexOf(rowIndex) === -1">' +
       '  <render-template template="component.templates.row" data="templateData" actions="actions"/>' +
       '</div>'
-    }
+    };
   });
   app.controller('formioEditGrid', [
     '$scope',
@@ -415,8 +414,7 @@ module.exports = function(app) {
   ]);
   app.run([
     '$templateCache',
-    'FormioUtils',
-    function($templateCache, FormioUtils) {
+    function($templateCache) {
       $templateCache.put('formio/components/editgrid.html', fs.readFileSync(__dirname + '/../templates/components/editgrid.html', 'utf8'));
     }
   ]);

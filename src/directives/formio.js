@@ -177,10 +177,10 @@ module.exports = function() {
         });
 
         $scope.setFormScope = function(scope) {
-          scope.$watch($scope.formName + '.$valid', function (valid) {
+          scope.$watch($scope.formName + '.$valid', function(valid) {
             $scope.valid = valid;
           });
-          scope.$watch($scope.formName + '.$pristine', function (pristine) {
+          scope.$watch($scope.formName + '.$pristine', function(pristine) {
             $scope.pristine = pristine;
           });
         };
@@ -249,7 +249,7 @@ module.exports = function() {
 
         var alertsWatcher = null;
 
-        $scope.submitUrl = function (url,component) {
+        $scope.submitUrl = function(url,component) {
           var settings = {
             headers: {}
           };
@@ -335,7 +335,7 @@ module.exports = function() {
                 }
               }
             });
-            if (component.action === 'url' && component.type === 'button'){
+            if (component.action === 'url' && component.type === 'button') {
               if (component.headers && component.headers.length > 0) {
                 component.headers.forEach(function(e) {
                   if (e.header !== '' && e.value !== '') {
@@ -349,7 +349,7 @@ module.exports = function() {
               $scope.$emit('formSubmission', response.data);
 
               $scope.form.submitting = false;
-            }, function (err) {
+            }, function(err) {
               $scope.formioAlerts.push({
                 type: 'danger',
                 message: err.message
@@ -359,7 +359,6 @@ module.exports = function() {
             })
               .finally(function() {
                 if ($scope.form) {
-
                   $scope.form.submitting = false;
                 }
               });
@@ -372,7 +371,7 @@ module.exports = function() {
           }
         };
 
-        $scope.$on('submitUrl',function(event,args){
+        $scope.$on('submitUrl',function(event,args) {
           // Allow custom action urls.
           $scope.submitUrl(args.url,args.component);
         });
@@ -424,7 +423,8 @@ module.exports = function() {
         };
 
         $scope.isDisabled = function(component) {
-          return $scope.readOnly || component.disabled || (Array.isArray($scope.disableComponents) && $scope.disableComponents.indexOf(component.key) !== -1);
+          return $scope.readOnly || component.disabled || (Array.isArray($scope.disableComponents)
+            && $scope.disableComponents.indexOf(component.key) !== -1);
         };
 
         $scope.isRequired = function(component) {
@@ -433,7 +433,6 @@ module.exports = function() {
 
         // Called when the form is submitted.
         $scope.onSubmit = function(form) {
-
           $scope.formioAlerts = [];
           if ($scope.submission.state !== 'draft' && $scope.checkErrors(form)) {
             $scope.formioAlerts.push({

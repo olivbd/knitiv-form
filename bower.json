@@ -1,24 +1,24 @@
 {
   "name": "knitiv-form",
-  "version": "2.36.6",
+  "version": "2.36.7",
   "authors": [
     "Travis Tidwell <travis@form.io>",
     "Olivier Béraud <olivierberaud@free.fr"
   ],
   "main": [
-    "dist/formio.js",
-    "css/formio.css"
+    "dist/knitiv-form.js",
+    "css/knitiv-form.css"
   ],
-  "description": "The Knitiv Form renderer from Form.io.",
+  "description": "The Knitiv Form renderer based on Form.io.",
   "keywords": [
     "angularjs",
     "ionic",
     "form"
   ],
   "dependencies": {
-    "angular": "^1.7.3",
+    "angular": "^1.7.2",
     "ng-file-upload": "^12.2.13",
-    "angular-sanitize": "^1.7.3",
+    "angular-sanitize": "^1.7.2",
     "ng-dialog": "^1.4.0",
     "angular-moment": "^1.2.0",
     "bootstrap": "^3.3.7",

@@ -1,7 +1,7 @@
 require('./polyfills/polyfills');
 var fs = require('fs');
 
-var app = angular.module('formio', [
+var app = angular.module('knitiv-form', [
   'ngSanitize',
   'ui.bootstrap',
   'ui.bootstrap.datetimepicker',

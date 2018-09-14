@@ -195,10 +195,12 @@ module.exports = function(app) {
     '$scope',
     '$interpolate',
     'FormioUtils',
+    'Formio',
     function(
       $scope,
       $interpolate,
-      FormioUtils
+      FormioUtils,
+      Formio
     ) {
       if ($scope.options && $scope.options.building) return;
       $scope.fileUploads = {};

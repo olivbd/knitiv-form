@@ -10,8 +10,8 @@ plugins.bowerFiles = require('main-bower-files');
 plugins.addsrc = require('gulp-add-src');
 plugins.packageJson = require('./package.json');
 
-var template = '/*! ng-formio v<%= version %> | https://unpkg.com/ng-formio@<%= version %>/LICENSE.txt */';
-template += "\n";
+var template = '/*! knitiv-form v<%= version %> | https://unpkg.com/ng-formio@<%= version %>/LICENSE.txt */';
+template += '\n';
 template += '<%= contents %>';
 plugins.template = template;
 
@@ -26,7 +26,7 @@ gulp.task('scripts:complete', require('./gulp/scripts-complete')(gulp, plugins))
 gulp.task('scripts:full', require('./gulp/scripts-full')(gulp, plugins));
 gulp.task('scripts', ['scripts:basic', 'scripts:complete', 'scripts:full']);
 gulp.task('build', function(cb) {
-  plugins.runSeq(['clean'], 'scripts', 'styles', cb)
+  plugins.runSeq(['clean'], 'scripts', 'styles', cb);
 });
 gulp.task('watch', require('./gulp/watch')(gulp, plugins));
 gulp.task('default', ['watch']);
