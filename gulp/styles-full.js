@@ -4,10 +4,10 @@ module.exports = function(gulp, plugins) {
         includeSelf: true
     }))
       .pipe(plugins.filter('**/*.css'))
-      .pipe(plugins.concat('formio-full.css'))
+      .pipe(plugins.concat('knitiv-form-full.css'))
       .pipe(gulp.dest('dist'))
       .pipe(plugins.cssnano({zindex: false}))
-      .pipe(plugins.rename('formio-full.min.css'))
+      .pipe(plugins.rename('knitiv-form-full.min.css'))
       .pipe(gulp.dest('dist'));
   };
 };

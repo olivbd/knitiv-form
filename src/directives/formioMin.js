@@ -7,12 +7,13 @@ module.exports = function() {
       ctrl.$validators.min = function(value) {
         if (ctrl.$isEmpty(value) || angular.isUndefined(minValue)) {
           return true;
-        } else {
+        }
+        else {
           var valueAsNumber = angular.isNumber(value) ? value : parseFloat(value, 10);
           return valueAsNumber >= minValue;
         }
       };
-      
+
       scope.$watch(attrs.formioMin, function(value) {
         if (angular.isDefined(value) && !angular.isNumber(value)) {
           value = parseFloat(value, 10);

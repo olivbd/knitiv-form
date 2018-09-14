@@ -1,8 +1,8 @@
 {
   "name": "knitiv-form",
-  "version": "2.36.5",
-  "description": "The form redering engine behind Form.IO.",
-  "main": "dist/formio.min.js",
+  "version": "2.36.7",
+  "description": "The form rendering engine behind Form.IO.",
+  "main": "dist/knitiv-form.min.js",
   "scripts": {
     "test": "node test/test"
   },

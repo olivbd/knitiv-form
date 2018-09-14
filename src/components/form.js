@@ -55,13 +55,16 @@ module.exports = function(app) {
               }
 
               if (!url) {
+                // eslint-disable-next-line no-console
                 console.warn('Cannot load form. Need to pass in src or url to formio directive.');
                 return;
               }
 
               if ($scope.data[$scope.component.key] && $scope.data[$scope.component.key]._id) {
                 // Submission url should refer to the submission's form.
-                $scope.submissionFormio = new Formio($scope.formio.formsUrl + '/' + $scope.data[$scope.component.key].form + '/submission/' + $scope.data[$scope.component.key]._id, {base: baseUrl});
+                $scope.submissionFormio = new Formio($scope.formio.formsUrl + '/'
+                  + $scope.data[$scope.component.key].form + '/submission/'
+                  + $scope.data[$scope.component.key]._id, {base: baseUrl});
               }
               else {
                 // Submission url is the same as the form url.

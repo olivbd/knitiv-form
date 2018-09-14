@@ -1,5 +1,5 @@
-/*! ng-formio v2.36.5 | https://unpkg.com/ng-formio@2.36.5/LICENSE.txt */
-(function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.formio = f()}})(function(){var define,module,exports;return (function(){function r(e,n,t){function o(i,f){if(!n[i]){if(!e[i]){var c="function"==typeof require&&require;if(!f&&c)return c(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a}var p=n[i]={exports:{}};e[i][0].call(p.exports,function(r){var n=e[i][1][r];return o(n||r)},p,p.exports,r,e,n,t)}return n[i].exports}for(var u="function"==typeof require&&require,i=0;i<t.length;i++)o(t[i]);return o}return r})()({1:[function(_dereq_,module,exports){
+/*! knitiv-form v2.36.7 | https://unpkg.com/ng-formio@2.36.7/LICENSE.txt */
+(function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.knitivForm = f()}})(function(){var define,module,exports;return (function(){function r(e,n,t){function o(i,f){if(!n[i]){if(!e[i]){var c="function"==typeof require&&require;if(!f&&c)return c(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a}var p=n[i]={exports:{}};e[i][0].call(p.exports,function(r){var n=e[i][1][r];return o(n||r)},p,p.exports,r,e,n,t)}return n[i].exports}for(var u="function"==typeof require&&require,i=0;i<t.length;i++)o(t[i]);return o}return r})()({1:[function(_dereq_,module,exports){
 (function (root, factory) {
   // AMD
   if (typeof define === 'function' && define.amd) define(['angular'], factory);
@@ -92101,8 +92101,7 @@ module.exports = function(app) {
               }
               var flattened = FormioUtils.flattenComponents(parent.form.components, true);
               var components = flattened;
-              (new Function('form', 'flattened', 'components', '_merge', '$scope', 'data', 'row', $scope.component.custom.toString()))
-              (parent.form, flattened, components, _merge, $scope, $scope.data, $scope.data);
+              (new Function('form', 'flattened', 'components', '_merge', '$scope', 'data', 'row', $scope.component.custom.toString()))(parent.form, flattened, components, _merge, $scope, $scope.data, $scope.data);
             }
             catch (e) {
               /* eslint-disable no-console */
@@ -93365,14 +93364,14 @@ module.exports = function(app) {
         // Add the control to the main form.
         scope.formioForm.$addControl(ctrl);
 
-        ctrl.$validators.editgrid = function(modelValue, viewValue) {
+        ctrl.$validators.editgrid = function() {
           if (scope.openRows && scope.openRows.length) {
             return false;
           }
           return true;
         };
       }
-    }
+    };
   });
   app.directive('editgridRowValidation', function() {
     return {
@@ -93423,7 +93422,6 @@ module.exports = function(app) {
             // FOR-255 - Enable row data and form data to be visible in the validator.
             var data = scope.submission.data;
             var row = scope.row;
-            /*eslint-enable no-unused-vars */
 
             var component = scope.component;
             var custom = scope.component.validate.row;
@@ -93447,7 +93445,7 @@ module.exports = function(app) {
           return true;
         };
       }
-    }
+    };
   });
   app.directive('renderTemplate', function() {
     return {
@@ -93458,7 +93456,7 @@ module.exports = function(app) {
         data: '=',
         actions: '='
       },
-      link: function(scope, element, attrs) {
+      link: function(scope, element) {
         scope.$watch('data', function() {
           // Render template and set in element's innerHTML.
           element.html(formioUtils.interpolate(scope.template, scope.data));
@@ -93471,9 +93469,9 @@ module.exports = function(app) {
               });
             });
           }
-        })
+        });
       }
-    }
+    };
   });
   app.directive('editGridRow', function() {
     return {
@@ -93542,16 +93540,16 @@ module.exports = function(app) {
             $scope.rows[$scope.rowIndex] = $scope.rowData;
             $scope.openRows.splice($scope.openRows.indexOf($scope.rowIndex), 1);
             $scope.formioForm[$scope.componentId].$validate();
-          }
+          };
 
           var editRow = function() {
             $scope.openRows.push($scope.rowIndex);
             $scope.$apply();
-          }
+          };
           var removeRow = function() {
             $scope.removeRow($scope.rowIndex);
             $scope.$apply();
-          }
+          };
           $scope.actions = [
             {
               class: 'removeRow',
@@ -93563,7 +93561,7 @@ module.exports = function(app) {
               event: 'click',
               action: editRow
             }
-          ]
+          ];
         }
       ],
       template: '' +
@@ -93599,7 +93597,7 @@ module.exports = function(app) {
       '<div ng-if="openRows.indexOf(rowIndex) === -1">' +
       '  <render-template template="component.templates.row" data="templateData" actions="actions"/>' +
       '</div>'
-    }
+    };
   });
   app.controller('formioEditGrid', [
     '$scope',
@@ -93669,8 +93667,7 @@ module.exports = function(app) {
   ]);
   app.run([
     '$templateCache',
-    'FormioUtils',
-    function($templateCache, FormioUtils) {
+    function($templateCache) {
       $templateCache.put('formio/components/editgrid.html', "<div name=\"{{ componentId }}\" ng-model=\"data[component.key]\" ng-model-options=\"{allowInvalid: true}\" custom-validator=\"component.validate.custom\" editgrid-validation ng-controller=\"formioEditGrid\">\n  <label ng-if=\"labelVisible()\" for=\"{{ component.key }}\" class=\"control-label\" ng-class=\"{'field-required': isRequired(component)}\">\n    {{ component.label | formioTranslate:null:options.building }}\n    <formio-component-tooltip></formio-component-tooltip>\n  </label>\n  <div class=\"formio-data-grid\" id=\"formio-editgrid-{{ component.key }}\">\n    <ul class=\"list-group\">\n      <li ng-if=\"component.templates.header\" class=\"list-group-item list-group-header\">\n        <render-template template=\"component.templates.header\" data=\"headerData\" />\n      </li>\n      <li class=\"list-group-item\" ng-repeat=\"row in rows track by $index\" ng-init=\"rowIndex = $index\">\n        <div name=\"{{ componentId }}-row-{{ $index }}\" ng-model=\"row\" ng-model-options=\"{allowInvalid: true}\" editgrid-row-validation>\n          <edit-grid-row />\n          <p class=\"help-block\" ng-show=\"openRows.indexOf($index) !== -1 && formioForm.$error.editgrid\">{{ 'Please save all rows before proceeding' | formioTranslate }}.</p>\n          <p class=\"help-block\" ng-show=\"formioForm[componentId + '-row-' + $index].$error.editgridrow\">{{ 'Please correct rows before proceeding' | formioTranslate }}.</p>\n        </div>\n      </li>\n      <li ng-if=\"component.templates.footer\" class=\"list-group-item list-group-footer\">\n        <render-template template=\"component.templates.footer\" data=\"headerData\" />\n      </li>\n    </ul>\n    <div class=\"datagrid-add\" ng-if=\"!component.hasOwnProperty('validate') || !component.validate.hasOwnProperty('maxLength') || rows.length < component.validate.maxLength\">\n      <a ng-click=\"addRow()\" class=\"btn btn-primary\">\n        <span class=\"glyphicon glyphicon-plus\" aria-hidden=\"true\"></span> {{ component.addAnother || \"Add Another\" | formioTranslate:null:options.building }}\n      </a>\n    </div>\n  </div>\n  <formio-errors ng-if=\"::!options.building\"></formio-errors>\n</div>\n");
     }
   ]);
@@ -93972,10 +93969,12 @@ module.exports = function(app) {
     '$scope',
     '$interpolate',
     'FormioUtils',
+    'Formio',
     function(
       $scope,
       $interpolate,
-      FormioUtils
+      FormioUtils,
+      Formio
     ) {
       if ($scope.options && $scope.options.building) return;
       $scope.fileUploads = {};
@@ -94177,13 +94176,16 @@ module.exports = function(app) {
               }
 
               if (!url) {
+                // eslint-disable-next-line no-console
                 console.warn('Cannot load form. Need to pass in src or url to formio directive.');
                 return;
               }
 
               if ($scope.data[$scope.component.key] && $scope.data[$scope.component.key]._id) {
                 // Submission url should refer to the submission's form.
-                $scope.submissionFormio = new Formio($scope.formio.formsUrl + '/' + $scope.data[$scope.component.key].form + '/submission/' + $scope.data[$scope.component.key]._id, {base: baseUrl});
+                $scope.submissionFormio = new Formio($scope.formio.formsUrl + '/'
+                  + $scope.data[$scope.component.key].form + '/submission/'
+                  + $scope.data[$scope.component.key]._id, {base: baseUrl});
               }
               else {
                 // Submission url is the same as the form url.
@@ -94440,7 +94442,7 @@ module.exports = function(app) {
 
 },{}],268:[function(_dereq_,module,exports){
 "use strict";
-var app = angular.module('formio');
+var app = angular.module('knitiv-form');
 
 // Basic
 _dereq_('./components')(app);
@@ -96006,7 +96008,11 @@ module.exports = function(app) {
           key: 'table',
           numRows: 3,
           numCols: 3,
-          rows: [[{components: []}, {components: []}, {components: []}], [{components: []}, {components: []}, {components: []}], [{components: []}, {components: []}, {components: []}]],
+          rows: [
+            [{components: []}, {components: []}, {components: []}],
+            [{components: []}, {components: []}, {components: []}],
+            [{components: []}, {components: []}, {components: []}]
+          ],
           header: [],
           caption: '',
           striped: false,
@@ -96057,6 +96063,7 @@ module.exports = function(app) {
   app.run([
     '$templateCache',
     function($templateCache) {
+      // eslint-disable-next-line no-unused-vars
       var tableClasses = "{'table-striped': component.striped, ";
       tableClasses += "'table-bordered': component.bordered, ";
       tableClasses += "'table-hover': component.hover, ";
@@ -96668,10 +96675,10 @@ module.exports = function() {
         });
 
         $scope.setFormScope = function(scope) {
-          scope.$watch($scope.formName + '.$valid', function (valid) {
+          scope.$watch($scope.formName + '.$valid', function(valid) {
             $scope.valid = valid;
           });
-          scope.$watch($scope.formName + '.$pristine', function (pristine) {
+          scope.$watch($scope.formName + '.$pristine', function(pristine) {
             $scope.pristine = pristine;
           });
         };
@@ -96740,7 +96747,7 @@ module.exports = function() {
 
         var alertsWatcher = null;
 
-        $scope.submitUrl = function (url,component) {
+        $scope.submitUrl = function(url,component) {
           var settings = {
             headers: {}
           };
@@ -96826,7 +96833,7 @@ module.exports = function() {
                 }
               }
             });
-            if (component.action === 'url' && component.type === 'button'){
+            if (component.action === 'url' && component.type === 'button') {
               if (component.headers && component.headers.length > 0) {
                 component.headers.forEach(function(e) {
                   if (e.header !== '' && e.value !== '') {
@@ -96840,7 +96847,7 @@ module.exports = function() {
               $scope.$emit('formSubmission', response.data);
 
               $scope.form.submitting = false;
-            }, function (err) {
+            }, function(err) {
               $scope.formioAlerts.push({
                 type: 'danger',
                 message: err.message
@@ -96850,7 +96857,6 @@ module.exports = function() {
             })
               .finally(function() {
                 if ($scope.form) {
-
                   $scope.form.submitting = false;
                 }
               });
@@ -96863,7 +96869,7 @@ module.exports = function() {
           }
         };
 
-        $scope.$on('submitUrl',function(event,args){
+        $scope.$on('submitUrl',function(event,args) {
           // Allow custom action urls.
           $scope.submitUrl(args.url,args.component);
         });
@@ -96915,7 +96921,8 @@ module.exports = function() {
         };
 
         $scope.isDisabled = function(component) {
-          return $scope.readOnly || component.disabled || (Array.isArray($scope.disableComponents) && $scope.disableComponents.indexOf(component.key) !== -1);
+          return $scope.readOnly || component.disabled || (Array.isArray($scope.disableComponents)
+            && $scope.disableComponents.indexOf(component.key) !== -1);
         };
 
         $scope.isRequired = function(component) {
@@ -96924,7 +96931,6 @@ module.exports = function() {
 
         // Called when the form is submitted.
         $scope.onSubmit = function(form) {
-
           $scope.formioAlerts = [];
           if ($scope.submission.state !== 'draft' && $scope.checkErrors(form)) {
             $scope.formioAlerts.push({
@@ -97417,7 +97423,7 @@ module.exports = [
 
           // Allow component keys to look like "settings[username]"
           if ($scope.component.key && $scope.component.key.indexOf('[') !== -1) {
-            var matches = $scope.component.key.match(/([^\[]+)\[([^]+)\]/);
+            var matches = $scope.component.key.match(/([^[]+)\[([^]+)\]/);
             if ((matches.length === 3) && $scope.data.hasOwnProperty(matches[1])) {
               $scope.data = $scope.data[matches[1]];
               $scope.component.key = matches[2];
@@ -97692,6 +97698,7 @@ module.exports = ['FormioUtils', function(FormioUtils) {
 
       if (scope.component.delimiter) {
         if (scope.options.hasOwnProperty('thousandsSeparator')) {
+          // eslint-disable-next-line no-console
           console.warn("Property 'thousandsSeparator' is deprecated. Please use i18n to specify delimiter.");
         }
 
@@ -97729,6 +97736,7 @@ module.exports = ['FormioUtils', function(FormioUtils) {
        */
       var setInputMask = function(input) {
         if (!input) {
+          // eslint-disable-next-line no-console
           console.warn('no input');
           return;
         }
@@ -97739,7 +97747,7 @@ module.exports = ['FormioUtils', function(FormioUtils) {
           thousandsSeparatorSymbol: _.get(scope.component, 'thousandsSeparator', scope.delimiter),
           decimalSymbol: _.get(scope.component, 'decimalSymbol', scope.decimalSeparator),
           allowNegative: _.get(scope.component, 'allowNegative', true)
-        }
+        };
 
         if (_.get(scope.component, 'decimalLimit', scope.decimalLimit) === 0 ||
           (scope.component.validate && scope.component.validate.integer) ||
@@ -97857,7 +97865,8 @@ module.exports = function() {
       ctrl.$validators.max = function(value) {
         if (ctrl.$isEmpty(value) || angular.isUndefined(maxValue)) {
           return true;
-        } else {
+        }
+        else {
           var valueAsNumber = angular.isNumber(value) ? value : parseFloat(value, 10);
           return valueAsNumber <= maxValue;
         }
@@ -97873,6 +97882,7 @@ module.exports = function() {
     }
   };
 };
+
 },{}],296:[function(_dereq_,module,exports){
 "use strict";
 module.exports = function() {
@@ -97884,12 +97894,13 @@ module.exports = function() {
       ctrl.$validators.min = function(value) {
         if (ctrl.$isEmpty(value) || angular.isUndefined(minValue)) {
           return true;
-        } else {
+        }
+        else {
           var valueAsNumber = angular.isNumber(value) ? value : parseFloat(value, 10);
           return valueAsNumber >= minValue;
         }
       };
-      
+
       scope.$watch(attrs.formioMin, function(value) {
         if (angular.isDefined(value) && !angular.isNumber(value)) {
           value = parseFloat(value, 10);
@@ -98156,6 +98167,7 @@ module.exports = function() {
               return value ? JSON.parse(value) : false;
             }
             catch (err) {
+              // eslint-disable-next-line no-console
               console.warn('error parsing json from localstorage', err);
             }
           },
@@ -98171,7 +98183,7 @@ module.exports = function() {
           }
         };
 
-        var session = ($scope.storage && !$scope.readOnly) ? storage.getItem($scope.storage) : false;
+        session = ($scope.storage && !$scope.readOnly) ? storage.getItem($scope.storage) : false;
         $scope.formio = null;
         $scope.url = $scope.url || $scope.src;
         $scope.page = {};
@@ -98224,19 +98236,18 @@ module.exports = function() {
               }
 
               // if there is a localStorage object && submission.data is blank then bind localStorage to $scope
-              if(storage.getItem($scope.storage) && isEmpty($scope.submission.data) == true){
+              if (storage.getItem($scope.storage) && isEmpty($scope.submission.data) === true) {
                 $scope.submission.data = storage.getItem($scope.storage).data;
               }
 
               // if there is a localStorage object | && it is data | merge the two
-              if(storage.getItem($scope.storage) && isEmpty($scope.submission.data) == false){
+              if (storage.getItem($scope.storage) && isEmpty($scope.submission.data) === false) {
                 storage.setItem($scope.storage, {
                   page: $scope.currentPage,
                   data: $scope.submission.data
                 });
               }
             }
-
 
             $scope.page.components = $scope.pages[$scope.currentPage].components;
             $scope.activePage = $scope.pages[$scope.currentPage];
@@ -98452,7 +98463,7 @@ module.exports = function() {
         };
 
         $scope.cancel = function() {
-          if(confirm('Are you sure you want to cancel?')){
+          if (confirm('Are you sure you want to cancel?')) {
             $scope.clear();
             FormioUtils.alter('cancel', $scope, function(err) {
               if (err) {
@@ -98711,10 +98722,12 @@ module.exports = function() {
 "use strict";
 module.exports = [
   'Formio',
+  'Promise',
   'formioComponents',
   '$timeout',
   function(
     Formio,
+    Promise,
     formioComponents,
     $timeout
   ) {
@@ -98829,7 +98842,7 @@ module.exports = [
         var baseUrl = Formio.setScopeBase($scope);
         if ($scope._src) {
           loader = new Formio($scope._src, {base: baseUrl});
-          var submissionPromise = new Promise(function(resolve, reject) {
+          var submissionPromise = new Promise(function(resolve) {
             if (options.submission && loader.submissionId) {
               $scope.setLoading(true);
 
@@ -99262,7 +99275,7 @@ module.exports = function() {
       });
     },
     uniqueName: function(name) {
-      var parts = name.toLowerCase().replace(/[^0-9a-z\.]/g, '').split('.');
+      var parts = name.toLowerCase().replace(/[^0-9a-z.]/g, '').split('.');
       var fileName = parts[0];
       var ext = '';
       if (parts.length > 1) {
@@ -99643,25 +99656,24 @@ module.exports = [
 },{}],308:[function(_dereq_,module,exports){
 "use strict";
 module.exports = function() {
-    return function(label, shortcut) {
-      if (!shortcut || !/^[A-Za-z]$/.test(shortcut)) {
-        return label;
-      }
-  
-      var match = label.match(new RegExp(shortcut, 'i'));
-  
-      if (!match) {
-        return label;
-      }
-  
-      var char = match[0];
-      var index = match.index + 1;
-      var lowLine = '\u0332';
-  
-      return label.substring(0, index) + lowLine + label.substring(index);
-    };
-  }
-  
+  return function(label, shortcut) {
+    if (!shortcut || !/^[A-Za-z]$/.test(shortcut)) {
+      return label;
+    }
+
+    var match = label.match(new RegExp(shortcut, 'i'));
+
+    if (!match) {
+      return label;
+    }
+
+    var index = match.index + 1;
+    var lowLine = '\u0332';
+
+    return label.substring(0, index) + lowLine + label.substring(index);
+  };
+};
+
 },{}],309:[function(_dereq_,module,exports){
 "use strict";
 module.exports = [
@@ -99787,14 +99799,14 @@ _dereq_('angular-ckeditor');
 _dereq_('bootstrap-ui-datetime-picker/dist/datetime-picker');
 _dereq_('ng-dialog');
 _dereq_('angular-ui-ace/src/ui-ace');
-_dereq_('./formio');
+_dereq_('./knitiv-form');
 
-},{"./formio":315,"angular-ckeditor":1,"angular-file-saver":2,"angular-moment":3,"angular-sanitize":5,"angular-ui-ace/src/ui-ace":6,"angular-ui-bootstrap":8,"bootstrap":12,"bootstrap-ui-datetime-picker/dist/datetime-picker":11,"ng-dialog":238,"ng-file-upload":240,"ui-select/dist/select":246}],315:[function(_dereq_,module,exports){
+},{"./knitiv-form":315,"angular-ckeditor":1,"angular-file-saver":2,"angular-moment":3,"angular-sanitize":5,"angular-ui-ace/src/ui-ace":6,"angular-ui-bootstrap":8,"bootstrap":12,"bootstrap-ui-datetime-picker/dist/datetime-picker":11,"ng-dialog":238,"ng-file-upload":240,"ui-select/dist/select":246}],315:[function(_dereq_,module,exports){
 "use strict";
 _dereq_('./polyfills/polyfills');
 
 
-var app = angular.module('formio', [
+var app = angular.module('knitiv-form', [
   'ngSanitize',
   'ui.bootstrap',
   'ui.bootstrap.datetimepicker',

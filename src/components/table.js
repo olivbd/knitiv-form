@@ -16,7 +16,11 @@ module.exports = function(app) {
           key: 'table',
           numRows: 3,
           numCols: 3,
-          rows: [[{components: []}, {components: []}, {components: []}], [{components: []}, {components: []}, {components: []}], [{components: []}, {components: []}, {components: []}]],
+          rows: [
+            [{components: []}, {components: []}, {components: []}],
+            [{components: []}, {components: []}, {components: []}],
+            [{components: []}, {components: []}, {components: []}]
+          ],
           header: [],
           caption: '',
           striped: false,
@@ -67,6 +71,7 @@ module.exports = function(app) {
   app.run([
     '$templateCache',
     function($templateCache) {
+      // eslint-disable-next-line no-unused-vars
       var tableClasses = "{'table-striped': component.striped, ";
       tableClasses += "'table-bordered': component.bordered, ";
       tableClasses += "'table-hover': component.hover, ";

@@ -354,7 +354,7 @@ module.exports = function() {
       });
     },
     uniqueName: function(name) {
-      var parts = name.toLowerCase().replace(/[^0-9a-z\.]/g, '').split('.');
+      var parts = name.toLowerCase().replace(/[^0-9a-z.]/g, '').split('.');
       var fileName = parts[0];
       var ext = '';
       if (parts.length > 1) {

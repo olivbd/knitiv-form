@@ -7,7 +7,8 @@ module.exports = function() {
       ctrl.$validators.max = function(value) {
         if (ctrl.$isEmpty(value) || angular.isUndefined(maxValue)) {
           return true;
-        } else {
+        }
+        else {
           var valueAsNumber = angular.isNumber(value) ? value : parseFloat(value, 10);
           return valueAsNumber <= maxValue;
         }

@@ -27,6 +27,7 @@ module.exports = ['FormioUtils', function(FormioUtils) {
 
       if (scope.component.delimiter) {
         if (scope.options.hasOwnProperty('thousandsSeparator')) {
+          // eslint-disable-next-line no-console
           console.warn("Property 'thousandsSeparator' is deprecated. Please use i18n to specify delimiter.");
         }
 
@@ -64,6 +65,7 @@ module.exports = ['FormioUtils', function(FormioUtils) {
        */
       var setInputMask = function(input) {
         if (!input) {
+          // eslint-disable-next-line no-console
           console.warn('no input');
           return;
         }
@@ -74,7 +76,7 @@ module.exports = ['FormioUtils', function(FormioUtils) {
           thousandsSeparatorSymbol: _.get(scope.component, 'thousandsSeparator', scope.delimiter),
           decimalSymbol: _.get(scope.component, 'decimalSymbol', scope.decimalSeparator),
           allowNegative: _.get(scope.component, 'allowNegative', true)
-        }
+        };
 
         if (_.get(scope.component, 'decimalLimit', scope.decimalLimit) === 0 ||
           (scope.component.validate && scope.component.validate.integer) ||
