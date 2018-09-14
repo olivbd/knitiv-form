@@ -1,8 +1,8 @@
 {
-  "name": "knitiv-form",
-  "version": "2.36.9",
+  "name": "ng-formio",
+  "version": "2.36.10",
   "description": "The form rendering engine behind Form.IO.",
-  "main": "dist/knitiv-form.min.js",
+  "main": "dist/formio.min.js",
   "scripts": {
     "test": "node test/test"
   },
