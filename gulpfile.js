@@ -10,7 +10,7 @@ plugins.bowerFiles = require('main-bower-files');
 plugins.addsrc = require('gulp-add-src');
 plugins.packageJson = require('./package.json');
 
-var template = '/*! knitiv-form v<%= version %> | https://unpkg.com/ng-formio@<%= version %>/LICENSE.txt */';
+var template = '/*! ng-formio v<%= version %> | https://unpkg.com/ng-formio@<%= version %>/LICENSE.txt */';
 template += '\n';
 template += '<%= contents %>';
 plugins.template = template;

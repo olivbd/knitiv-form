@@ -1,11 +1,9 @@
 module.exports = [
   'Formio',
-  'Promise',
   'formioComponents',
   '$timeout',
   function(
     Formio,
-    Promise,
     formioComponents,
     $timeout
   ) {

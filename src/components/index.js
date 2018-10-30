@@ -1,4 +1,4 @@
-var app = angular.module('knitiv-form');
+var app = angular.module('formio');
 
 // Basic
 require('./components')(app);

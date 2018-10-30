@@ -1,16 +1,16 @@
 <!doctype html>
-<html class='no-js'>
+<html class="no-js">
 <head>
-  <meta charset='utf-8'>
+  <meta charset="utf-8">
   <title>Knitiv Form Builder</title>
-  <meta name='viewport' content='width=device-width'>
-  <link rel='stylesheet' href='https://cdn.rawgit.com/odra/ng-json-explorer/master/dist/angular-json-explorer.min.css'>
-  <link rel='stylesheet' href='https://unpkg.com/bootswatch@3.3.7/yeti/bootstrap.min.css' />
-  <link rel='stylesheet' href='https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css' />
-  <link rel='stylesheet' href='dist/knitiv-form-full.css' />
-  <link rel='stylesheet' href='https://maxcdn.bootstrapcdn.com/font-awesome/4.6.3/css/font-awesome.min.css' />
+  <meta name="viewport" content="width=device-width">
+  <link rel="stylesheet" href="https://cdn.rawgit.com/odra/ng-json-explorer/master/dist/angular-json-explorer.min.css">
+  <link rel="stylesheet" href="https://unpkg.com/bootswatch@3.3.7/yeti/bootstrap.min.css" />
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" />
+  <link rel="stylesheet" href="dist/formio-full.css" />
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.6.3/css/font-awesome.min.css" />
 </head>
-<body ng-app='formRenderer'>
+<body ng-app="formRenderer">
 <!-- BROWSE HAPPY BEGINS HERE -->
 <style>
   .browsehappy {
@@ -19,7 +19,7 @@
     height:100px;
     background-color:#f2dede;
     margin: 0 0 10px;
-    font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif;
+    font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;
     font-size: 22px;
     line-height: 1.4;
     color: #333;
@@ -29,7 +29,7 @@
   .browsehappy span {
     vertical-align:middle;
     margin:20px 20px 20px 20px;
-    background:url('https://cdn.rawgit.com/alrra/browser-logos/master/internet-explorer/internet-explorer_64x64.png') no-repeat;
+    background:url("https://cdn.rawgit.com/alrra/browser-logos/master/internet-explorer/internet-explorer_64x64.png") no-repeat;
     height:64px;
     width:64px;
     display:inline-block;
@@ -63,27 +63,27 @@
     vertical-align: top;
   }
 </style>
-<!--[if IE 6]><p class='browsehappy'><img />You are using an <strong>outdated</strong> browser. Please <a href='http://browsehappy.com/'>upgrade your browser</a> to improve your experience.</p><![endif]-->
-<!--[if IE 7]><p class='browsehappy'><img src='https://cdn.rawgit.com/alrra/browser-logos/master/internet-explorer/internet-explorer_64x64.png' />You are using an <strong>outdated</strong> browser. Please <a href='http://browsehappy.com/'>upgrade your browser</a> to improve your experience.</p><![endif]-->
-<!--[if IE 8]><p class='browsehappy'><img src='https://cdn.rawgit.com/alrra/browser-logos/master/internet-explorer/internet-explorer_64x64.png' />You are using an <strong>outdated</strong> browser. Please <a href='http://browsehappy.com/'>upgrade your browser</a> to improve your experience.</p><![endif]-->
-<!--[if IE 9]><p class='browsehappy'><img src='https://cdn.rawgit.com/alrra/browser-logos/master/internet-explorer/internet-explorer_64x64.png' />You are using an <strong>outdated</strong> browser. Please <a href='http://browsehappy.com/'>upgrade your browser</a> to improve your experience.</p><![endif]-->
+<!--[if IE 6]><p class="browsehappy"><img />You are using an <strong>outdated</strong> browser. Please <a href="http://browsehappy.com/">upgrade your browser</a> to improve your experience.</p><![endif]-->
+<!--[if IE 7]><p class="browsehappy"><img src="https://cdn.rawgit.com/alrra/browser-logos/master/internet-explorer/internet-explorer_64x64.png" />You are using an <strong>outdated</strong> browser. Please <a href="http://browsehappy.com/">upgrade your browser</a> to improve your experience.</p><![endif]-->
+<!--[if IE 8]><p class="browsehappy"><img src="https://cdn.rawgit.com/alrra/browser-logos/master/internet-explorer/internet-explorer_64x64.png" />You are using an <strong>outdated</strong> browser. Please <a href="http://browsehappy.com/">upgrade your browser</a> to improve your experience.</p><![endif]-->
+<!--[if IE 9]><p class="browsehappy"><img src="https://cdn.rawgit.com/alrra/browser-logos/master/internet-explorer/internet-explorer_64x64.png" />You are using an <strong>outdated</strong> browser. Please <a href="http://browsehappy.com/">upgrade your browser</a> to improve your experience.</p><![endif]-->
 <!-- BROWSE HAPPY ENDS HERE -->
-<div class='page-content' ng-app='formioApp'>
-  <div class='container-fluid'>
+<div class="page-content" ng-app="formioApp">
+  <div class="container-fluid">
     <div>
-      <div class='row'>
-        <div class='col-sm-4'>
-          <h3 class='text-center text-muted'>A JSON Schema</h3>
-          <pre class='bg-info'><h4><code>$rootScope.form = </code></h4></pre>
-          <div class='well jsonviewer'>
-            <json-explorer data='form' collapsed='jsonCollapsed'></json-explorer>
+      <div class="row">
+        <div class="col-sm-4">
+          <h3 class="text-center text-muted">A JSON Schema</h3>
+          <pre class="bg-info"><h4><code>$rootScope.form = </code></h4></pre>
+          <div class="well jsonviewer">
+            <json-explorer data="form" collapsed="jsonCollapsed"></json-explorer>
           </div>
         </div>
-        <div class='col-sm-8'>
-          <h3 class='text-center text-muted'>Renders as a Form</h3>
-          <pre class='text-center bg-info'><h4><code>&lt;formio form='form'&gt;&lt;/formio&gt;</code></h4></pre>
-          <div class='well' style='background-color: #fdfdfd;'>
-            <formio form='form' id='K001' valid='valid' read-only="readonly"></formio>
+        <div class="col-sm-8">
+          <h3 class="text-center text-muted">Renders as a Form</h3>
+          <pre class="text-center bg-info"><h4><code>&lt;formio form="form"&gt;&lt;/formio&gt;</code></h4></pre>
+          <div class="well" style="background-color: #fdfdfd;">
+            <formio form="form" id="K001" valid="valid" read-only="readonly"></formio>
             valid {{ valid }}
           </div>
         </div>
@@ -91,14 +91,35 @@
     </div>
   </div>
 </div>
-<script src='https://cdn.ckeditor.com/4.5.11/standard/ckeditor.js'></script>
-<script src='https://unpkg.com/signature_pad@1.5.3/signature_pad.min.js'></script>
-<script src='dist/knitiv-form-full.js'></script>
-<script src='https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.4/lodash.min.js'></script>
-<script src='https://cdn.rawgit.com/odra/ng-json-explorer/master/dist/angular-json-explorer.min.js'></script>
-<script type='text/javascript'>
+<script src="https://unpkg.com/signature_pad@1.5.3/signature_pad.min.js"></script>
+
+
+
+<script src="bower_components/jquery/dist/jquery.js"></script>
+<script src="bower_components/angular/angular.js"></script>
+<script src="bower_components/angular-bootstrap/ui-bootstrap-tpls.js"></script>
+<script src="bower_components/bootstrap/dist/js/bootstrap.js"></script>
+<script src="bower_components/angular-ui-ace/ui-ace.js"></script>
+<script src="bower_components/ckeditor/ckeditor.js"></script>
+<script src="bower_components/ng-file-upload/ng-file-upload.js"></script>
+<script src="bower_components/angular-sanitize/angular-sanitize.js"></script>
+<script src="bower_components/ng-dialog/js/ngDialog.js"></script>
+<script src="bower_components/moment/moment.js"></script>
+<script src="bower_components/angular-moment/angular-moment.js"></script>
+<script src="bower_components/bootstrap-ui-datetime-picker/dist/datetime-picker.js"></script>
+<script src="bower_components/blob-polyfill/Blob.js"></script>
+<script src="bower_components/file-saver.js/FileSaver.js"></script>
+<script src="bower_components/angular-file-saver/dist/angular-file-saver.bundle.js"></script>
+<script src="bower_components/angular-ui-select/dist/select.js"></script>
+<script src="bower_components/angular-ckeditor/angular-ckeditor.js"></script>
+
+<script src="dist/formio.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.4/lodash.min.js"></script>
+<script src="https://cdn.rawgit.com/odra/ng-json-explorer/master/dist/angular-json-explorer.min.js"></script>
+<script type="text/javascript">
   angular
-    .module('formRenderer', ['ui.bootstrap', 'ui.select', 'knitiv-form', 'ngJsonExplorer'])
+    .module('formRenderer', ['ui.bootstrap', 'ui.select', 'formio', 'ngJsonExplorer'])
     .run(['$rootScope', '$timeout', function($rootScope, $timeout) {
       $rootScope.jsonCollapsed = true;
       $timeout(function() {
@@ -107,288 +128,150 @@
       $rootScope.valid = false;
       $rootScope.readonly = false;
       $rootScope.form = {
-        components: [
-          {
-            input:        true,
-            tableView:    true,
-            inputType:    'text',
-            inputMask:    '',
-            label:        'First Name',
-            key:          'firstName',
-            placeholder:  'Enter your first name',
-            prefix:       '',
-            suffix:       '',
-            multiple:     false,
-            defaultValue: '',
-            protected:    false,
-            unique:       false,
-            persistent:   true,
-            validate:     {
-              required:      false,
-              minLength:     '',
-              maxLength:     '',
-              pattern:       '',
-              custom:        '',
-              customPrivate: false
-            },
-            conditional:  {
-              show: false,
-              when: null,
-              eq:   ''
-            },
-            type:         'textfield'
-          },
-          {
-            input:        true,
-            tableView:    true,
-            inputType:    'text',
-            inputMask:    '',
-            label:        'Last Name',
-            key:          'lastName',
-            placeholder:  'Enter your last name',
-            prefix:       '',
-            suffix:       '',
-            multiple:     false,
-            defaultValue: '',
-            protected:    false,
-            unique:       false,
-            persistent:   true,
-            validate:     {
-              required:      true,
-              minLength:     '',
-              maxLength:     '',
-              pattern:       '',
-              custom:        '',
-              customPrivate: false
-            },
-            conditional:  {
-              show: false,
-              when: null,
-              eq:   ''
-            },
-            type:         'textfield'
-          },
-          {
-            type:          'select',
-            validate:      {
-              required: false
-            },
-            clearOnHide:   true,
-            persistent:    true,
-            unique:        false,
-            protected:     false,
-            multiple:      true,
-            template:      '<span>{{ item.label }}</span>',
-            authenticate:  false,
-            filter:        '',
-            refreshOn:     '',
-            defaultValue:  '',
-            valueProperty: '',
-            dataSrc:       'values',
-            data:          {
-              custom:   '',
-              resource: '',
-              url:      '',
-              json:     '',
-              values:   [
-                {
-                  label: 'Raindrops on roses',
-                  value: 'raindropsOnRoses'
-                },
-                {
-                  label: 'Whiskers on Kittens',
-                  value: 'whiskersOnKittens'
-                },
-                {
-                  label: 'Bright copper kettles',
-                  value: 'brightCopperKettles'
-                },
-                {
-                  label: 'Warm woolen Mittens',
-                  value: 'warmWoolenMittens'
-                },
-                []
-              ]
-            },
-            placeholder:   'Select a few',
-            key:           'favoriteThings',
-            label:         'Favorite Things',
-            tableView:     true,
-            input:         true
-          },
-          {
-            input:         true,
-            tableView:     true,
-            label:         "Message",
-            key:           "message",
-            placeholder:   "What do you think?",
-            prefix:        "",
-            suffix:        "",
-            rows:          3,
-            multiple:      false,
-            defaultValue:  "",
-            protected:     false,
-            persistent:    true,
-            validate:      {
-              required:  false,
-              minLength: "",
-              maxLength: "",
-              pattern:   "",
-              custom:    ""
-            },
-            type:          "textarea",
-            conditional:   {
-              show: "",
-              when: null,
-              eq:   ""
-            },
-            autofocus:     false,
-            hidden:        false,
-            wysiwyg:       {
-              toolbarGroups:             [
-                {
-                  name:   "basicstyles",
-                  groups: [
-                    "basicstyles",
-                    "cleanup"
-                  ]
-                },
-                {
-                  name:   "paragraph",
-                  groups: [
-                    "list",
-                    "indent",
-                    "blocks",
-                    "align",
-                    "bidi",
-                    "paragraph",
-                    "-",
-                    "JustifyLeft",
-                    "JustifyCenter",
-                    "JustifyRight",
-                    "JustifyBlock"
-                  ]
-                },
-                {
-                  name:   "links",
-                  groups: [
-                    "links"
-                  ]
-                },
-                {
-                  name:   "insert",
-                  groups: [
-                    "insert"
-                  ]
-                },
-                "/",
-                {
-                  name:   "styles",
-                  groups: [
-                    "Styles",
-                    "Format",
-                    "Font",
-                    "FontSize"
-                  ]
-                },
-                {
-                  name:   "colors",
-                  groups: [
-                    "colors"
-                  ]
-                },
-                {
-                  name:   "clipboard",
-                  groups: [
-                    "clipboard",
-                    "undo"
-                  ]
-                },
-                {
-                  name:   "editing",
-                  groups: [
-                    "find",
-                    "selection",
-                    "spellchecker",
-                    "editing"
-                  ]
-                },
-                {
-                  name:   "document",
-                  groups: [
-                    "mode",
-                    "document",
-                    "doctools"
-                  ]
-                },
-                {
-                  name:   "others",
-                  groups: [
-                    "others"
-                  ]
-                },
-                {
-                  name:   "tools",
-                  groups: [
-                    "tools"
-                  ]
-                }
-              ],
-              // extraPlugins:              "justify,font",
-              removeButtons:             "Cut,Copy,Paste,Underline,Subscript,Superscript,Scayt,About",
-              uiColor:                   "#eeeeee",
-              height:                    "400px",
-              width:                     "100%",
-              disableNativeSpellChecker: false
-            },
-            clearOnHide:   true,
-            spellcheck:    true,
-            labelPosition: "top",
-            inputFormat:   "html",
-            tags:          [],
-            properties:    {},
-            isNew:         false
-          },
-          {
-            key:         "undefinedContent",
-            label:       "Content",
-            input:       false,
-            tag:         "p",
-            attrs:       [
-            ],
-            className:   "",
-            content:     `<div class="row">
-      <div class="col-lg-3 col-md-6">Type : Prénom</div>
-      <div class="col-lg-3 col-md-6">Kid : K_NODE;0000045LMH2WEBFY45</div>
-      <div class="col-lg-3 col-md-6">Créateur : Olivier BERAUD</div>
-      <div class="col-lg-3 col-md-6">Date de création : 2018-09-10 12:32:35</div>
-      </div>`,
-            type:        "htmlelement",
-            hideLabel:   true,
-            conditional: {
-              show: "",
-              when: null,
-              eq:   ""
-            },
-            properties:  {}
-          },
-          {
-            type:             'button',
-            theme:            'primary',
-            disableOnInvalid: true,
-            action:           'submit',
-            block:            false,
-            rightIcon:        '',
-            leftIcon:         '',
-            size:             'md',
-            key:              'submit',
-            tableView:        false,
-            label:            'Submit',
-            input:            true
-          }
-        ],
-        display:    'form'
-      };
+				"components": [
+					{
+						"input": true,
+						"tableView": true,
+						"inputType": "text",
+						"inputMask": "",
+						"label": "First Name",
+						"key": "firstName",
+						"placeholder": "Enter your first name",
+						"prefix": "",
+						"suffix": "",
+						"multiple": false,
+						"defaultValue": "",
+						"protected": false,
+						"unique": false,
+						"persistent": true,
+						"validate": {
+							"required": false,
+							"minLength": "",
+							"maxLength": "",
+							"pattern": "",
+							"custom": "",
+							"customPrivate": false
+						},
+						"conditional": {
+							"show": false,
+							"when": null,
+							"eq": ""
+						},
+						"type": "textfield",
+						"autofocus": false,
+						"hidden": false,
+						"clearOnHide": true,
+						"spellcheck": true
+					},
+					{
+						"input": true,
+						"tableView": true,
+						"inputType": "text",
+						"inputMask": "",
+						"label": "Last Name",
+						"key": "lastName",
+						"placeholder": "Enter your last name",
+						"prefix": "",
+						"suffix": "",
+						"multiple": false,
+						"defaultValue": "",
+						"protected": false,
+						"unique": false,
+						"persistent": true,
+						"validate": {
+							"required": false,
+							"minLength": "",
+							"maxLength": "",
+							"pattern": "",
+							"custom": "",
+							"customPrivate": false
+						},
+						"conditional": {
+							"show": false,
+							"when": null,
+							"eq": ""
+						},
+						"type": "textfield",
+						"autofocus": false,
+						"hidden": false,
+						"clearOnHide": true,
+						"spellcheck": true
+					},
+					{
+						"clearOnHide": false,
+						"key": "undefinedPanel",
+						"input": false,
+						"title": "test collapse",
+						"theme": "default",
+						"tableView": false,
+						"components": [
+							{
+								"input": true,
+								"tableView": true,
+								"label": "Message",
+								"key": "message",
+								"placeholder": "What do you think?",
+								"prefix": "",
+								"suffix": "",
+								"rows": 3,
+								"multiple": false,
+								"defaultValue": "",
+								"protected": false,
+								"persistent": true,
+								"validate": {
+									"required": false,
+									"minLength": "",
+									"maxLength": "",
+									"pattern": "",
+									"custom": ""
+								},
+								"type": "textarea",
+								"conditional": {
+									"show": false,
+									"when": null,
+									"eq": ""
+								},
+								"autofocus": false,
+								"hidden": false,
+								"wysiwyg": false,
+								"clearOnHide": true,
+								"spellcheck": true
+							}
+						],
+						"type": "panel",
+						"breadcrumb": "default",
+						"hideLabel": false,
+						"tags": [
+						],
+						"conditional": {
+							"show": "",
+							"when": null,
+							"eq": ""
+						},
+						"properties": {
+						},
+						"collapsible": true,
+						"collapsed": true
+					},
+					{
+						"type": "button",
+						"theme": "primary",
+						"disableOnInvalid": true,
+						"action": "submit",
+						"block": false,
+						"rightIcon": "",
+						"leftIcon": "",
+						"size": "md",
+						"key": "submit",
+						"tableView": false,
+						"label": "Submit",
+						"input": true,
+						"autofocus": false
+					}
+				],
+				"display": "form",
+				"page": 0
+			};
     }]);
 </script>
 </body>
