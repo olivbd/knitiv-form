@@ -1,5 +1,160 @@
 /*! ng-formio v2.36.11 | https://unpkg.com/ng-formio@2.36.11/LICENSE.txt */
 (function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.formio = f()}})(function(){var define,module,exports;return (function(){function r(e,n,t){function o(i,f){if(!n[i]){if(!e[i]){var c="function"==typeof require&&require;if(!f&&c)return c(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a}var p=n[i]={exports:{}};e[i][0].call(p.exports,function(r){var n=e[i][1][r];return o(n||r)},p,p.exports,r,e,n,t)}return n[i].exports}for(var u="function"==typeof require&&require,i=0;i<t.length;i++)o(t[i]);return o}return r})()({1:[function(_dereq_,module,exports){
+(function (root, factory) {
+  // AMD
+  if (typeof define === 'function' && define.amd) define(['angular'], factory);
+  // Global
+  else factory(angular);
+}(this, function (angular) {
+
+  angular
+  .module('ckeditor', [])
+  .directive('ckeditor', ['$parse', ckeditorDirective]);
+
+  // Polyfill setImmediate function.
+  var setImmediate = window && window.setImmediate ? window.setImmediate : function (fn) {
+    setTimeout(fn, 0);
+  };
+
+  /**
+   * CKEditor directive.
+   *
+   * @example
+   * <div ckeditor="options" ng-model="content" ready="onReady()"></div>
+   */
+
+  function ckeditorDirective($parse) {
+    return {
+      restrict: 'A',
+      require: ['ckeditor', 'ngModel'],
+      controller: [
+        '$scope',
+        '$element',
+        '$attrs',
+        '$parse',
+        '$q',
+        ckeditorController
+      ],
+      link: function (scope, element, attrs, ctrls) {
+        // get needed controllers
+        var controller = ctrls[0]; // our own, see below
+        var ngModelController = ctrls[1];
+
+        // Initialize the editor content when it is ready.
+        controller.ready().then(function initialize() {
+          // Sync view on specific events.
+          ['dataReady', 'change', 'blur', 'saveSnapshot'].forEach(function (event) {
+            controller.onCKEvent(event, function syncView() {
+              ngModelController.$setViewValue(controller.instance.getData() || '');
+            });
+          });
+
+          controller.instance.setReadOnly(!! attrs.readonly);
+          attrs.$observe('readonly', function (readonly) {
+            controller.instance.setReadOnly(!! readonly);
+          });
+
+          // Defer the ready handler calling to ensure that the editor is
+          // completely ready and populated with data.
+          setImmediate(function () {
+            $parse(attrs.ready)(scope);
+          });
+        });
+
+        // Set editor data when view data change.
+        ngModelController.$render = function syncEditor() {
+          controller.ready().then(function () {
+            // "noSnapshot" prevent recording an undo snapshot
+            controller.instance.setData(ngModelController.$viewValue || '', {
+              noSnapshot: true,
+              callback: function () {
+                // Amends the top of the undo stack with the current DOM changes
+                // ie: merge snapshot with the first empty one
+                // http://docs.ckeditor.com/#!/api/CKEDITOR.editor-event-updateSnapshot
+                controller.instance.fire('updateSnapshot');
+              }
+            });
+          });
+        };
+      }
+    };
+  }
+
+  /**
+   * CKEditor controller.
+   */
+
+  function ckeditorController($scope, $element, $attrs, $parse, $q) {
+    var config = $parse($attrs.ckeditor)($scope) || {};
+    var editorElement = $element[0];
+    var instance;
+    var readyDeferred = $q.defer(); // a deferred to be resolved when the editor is ready
+
+    // Create editor instance.
+    if (editorElement.hasAttribute('contenteditable') &&
+        editorElement.getAttribute('contenteditable').toLowerCase() == 'true') {
+      instance = this.instance = CKEDITOR.inline(editorElement, config);
+    }
+    else {
+      instance = this.instance = CKEDITOR.replace(editorElement, config);
+    }
+
+    /**
+     * Listen on events of a given type.
+     * This make all event asynchronous and wrapped in $scope.$apply.
+     *
+     * @param {String} event
+     * @param {Function} listener
+     * @returns {Function} Deregistration function for this listener.
+     */
+
+    this.onCKEvent = function (event, listener) {
+      instance.on(event, asyncListener);
+
+      function asyncListener() {
+        var args = arguments;
+        setImmediate(function () {
+          applyListener.apply(null, args);
+        });
+      }
+
+      function applyListener() {
+        var args = arguments;
+        $scope.$apply(function () {
+          listener.apply(null, args);
+        });
+      }
+
+      // Return the deregistration function
+      return function $off() {
+        instance.removeListener(event, applyListener);
+      };
+    };
+
+    this.onCKEvent('instanceReady', function() {
+      readyDeferred.resolve(true);
+    });
+
+    /**
+     * Check if the editor if ready.
+     *
+     * @returns {Promise}
+     */
+    this.ready = function ready() {
+      return readyDeferred.promise;
+    };
+
+    // Destroy editor when the scope is destroyed.
+    $scope.$on('$destroy', function onDestroy() {
+      // do not delete too fast or pending events will throw errors
+      readyDeferred.promise.then(function() {
+        instance.destroy(false);
+      });
+    });
+  }
+}));
+
+},{}],2:[function(_dereq_,module,exports){
 (function webpackUniversalModuleDefinition(root, factory) {
 	if(typeof exports === 'object' && typeof module === 'object')
 		module.exports = factory();
@@ -602,7 +757,7 @@ return /******/ (function(modules) { // webpackBootstrap
 /******/ ])
 });
 ;
-},{}],2:[function(_dereq_,module,exports){
+},{}],3:[function(_dereq_,module,exports){
 (function (global){
 /* angular-moment.js / v1.3.0 / (c) 2013, 2014, 2015, 2016, 2017, 2018 Uri Shaked / MIT Licence */
 
@@ -1343,7 +1498,7 @@ return /******/ (function(modules) { // webpackBootstrap
 })();
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"angular":9,"moment":236}],3:[function(_dereq_,module,exports){
+},{"angular":10,"moment":365}],4:[function(_dereq_,module,exports){
 /**
  * @license AngularJS v1.7.3
  * (c) 2010-2018 Google, Inc. http://angularjs.org
@@ -2258,11 +2413,11 @@ angular.module('ngSanitize').filter('linky', ['$sanitize', function($sanitize) {
 
 })(window, window.angular);
 
-},{}],4:[function(_dereq_,module,exports){
+},{}],5:[function(_dereq_,module,exports){
 _dereq_('./angular-sanitize');
 module.exports = 'ngSanitize';
 
-},{"./angular-sanitize":3}],5:[function(_dereq_,module,exports){
+},{"./angular-sanitize":4}],6:[function(_dereq_,module,exports){
 'use strict';
 
 /**
@@ -2592,7 +2747,7 @@ angular.module('ui.ace', [])
     };
   }]);
 
-},{}],6:[function(_dereq_,module,exports){
+},{}],7:[function(_dereq_,module,exports){
 /*
  * angular-ui-bootstrap
  * http://angular-ui.github.io/bootstrap/
@@ -10396,12 +10551,12 @@ angular.module('ui.bootstrap.datepickerPopup').run(function() {!angular.$$csp().
 angular.module('ui.bootstrap.tooltip').run(function() {!angular.$$csp().noInlineStyle && !angular.$$uibTooltipCss && angular.element(document).find('head').prepend('<style type="text/css">[uib-tooltip-popup].tooltip.top-left > .tooltip-arrow,[uib-tooltip-popup].tooltip.top-right > .tooltip-arrow,[uib-tooltip-popup].tooltip.bottom-left > .tooltip-arrow,[uib-tooltip-popup].tooltip.bottom-right > .tooltip-arrow,[uib-tooltip-popup].tooltip.left-top > .tooltip-arrow,[uib-tooltip-popup].tooltip.left-bottom > .tooltip-arrow,[uib-tooltip-popup].tooltip.right-top > .tooltip-arrow,[uib-tooltip-popup].tooltip.right-bottom > .tooltip-arrow,[uib-tooltip-html-popup].tooltip.top-left > .tooltip-arrow,[uib-tooltip-html-popup].tooltip.top-right > .tooltip-arrow,[uib-tooltip-html-popup].tooltip.bottom-left > .tooltip-arrow,[uib-tooltip-html-popup].tooltip.bottom-right > .tooltip-arrow,[uib-tooltip-html-popup].tooltip.left-top > .tooltip-arrow,[uib-tooltip-html-popup].tooltip.left-bottom > .tooltip-arrow,[uib-tooltip-html-popup].tooltip.right-top > .tooltip-arrow,[uib-tooltip-html-popup].tooltip.right-bottom > .tooltip-arrow,[uib-tooltip-template-popup].tooltip.top-left > .tooltip-arrow,[uib-tooltip-template-popup].tooltip.top-right > .tooltip-arrow,[uib-tooltip-template-popup].tooltip.bottom-left > .tooltip-arrow,[uib-tooltip-template-popup].tooltip.bottom-right > .tooltip-arrow,[uib-tooltip-template-popup].tooltip.left-top > .tooltip-arrow,[uib-tooltip-template-popup].tooltip.left-bottom > .tooltip-arrow,[uib-tooltip-template-popup].tooltip.right-top > .tooltip-arrow,[uib-tooltip-template-popup].tooltip.right-bottom > .tooltip-arrow,[uib-popover-popup].popover.top-left > .arrow,[uib-popover-popup].popover.top-right > .arrow,[uib-popover-popup].popover.bottom-left > .arrow,[uib-popover-popup].popover.bottom-right > .arrow,[uib-popover-popup].popover.left-top > .arrow,[uib-popover-popup].popover.left-bottom > .arrow,[uib-popover-popup].popover.right-top > .arrow,[uib-popover-popup].popover.right-bottom > .arrow,[uib-popover-html-popup].popover.top-left > .arrow,[uib-popover-html-popup].popover.top-right > .arrow,[uib-popover-html-popup].popover.bottom-left > .arrow,[uib-popover-html-popup].popover.bottom-right > .arrow,[uib-popover-html-popup].popover.left-top > .arrow,[uib-popover-html-popup].popover.left-bottom > .arrow,[uib-popover-html-popup].popover.right-top > .arrow,[uib-popover-html-popup].popover.right-bottom > .arrow,[uib-popover-template-popup].popover.top-left > .arrow,[uib-popover-template-popup].popover.top-right > .arrow,[uib-popover-template-popup].popover.bottom-left > .arrow,[uib-popover-template-popup].popover.bottom-right > .arrow,[uib-popover-template-popup].popover.left-top > .arrow,[uib-popover-template-popup].popover.left-bottom > .arrow,[uib-popover-template-popup].popover.right-top > .arrow,[uib-popover-template-popup].popover.right-bottom > .arrow{top:auto;bottom:auto;left:auto;right:auto;margin:0;}[uib-popover-popup].popover,[uib-popover-html-popup].popover,[uib-popover-template-popup].popover{display:block !important;}</style>'); angular.$$uibTooltipCss = true; });
 angular.module('ui.bootstrap.timepicker').run(function() {!angular.$$csp().noInlineStyle && !angular.$$uibTimepickerCss && angular.element(document).find('head').prepend('<style type="text/css">.uib-time input{width:50px;}</style>'); angular.$$uibTimepickerCss = true; });
 angular.module('ui.bootstrap.typeahead').run(function() {!angular.$$csp().noInlineStyle && !angular.$$uibTypeaheadCss && angular.element(document).find('head').prepend('<style type="text/css">[uib-typeahead-popup].dropdown-menu{display:block;}</style>'); angular.$$uibTypeaheadCss = true; });
-},{}],7:[function(_dereq_,module,exports){
+},{}],8:[function(_dereq_,module,exports){
 _dereq_('./dist/ui-bootstrap-tpls');
 
 module.exports = 'ui.bootstrap';
 
-},{"./dist/ui-bootstrap-tpls":6}],8:[function(_dereq_,module,exports){
+},{"./dist/ui-bootstrap-tpls":7}],9:[function(_dereq_,module,exports){
 /**
  * @license AngularJS v1.7.3
  * (c) 2010-2018 Google, Inc. http://angularjs.org
@@ -46630,11 +46785,11 @@ $provide.value("$locale", {
 })(window);
 
 !window.angular.$$csp().noInlineStyle && window.angular.element(document.head).prepend('<style type="text/css">@charset "UTF-8";[ng\\:cloak],[ng-cloak],[data-ng-cloak],[x-ng-cloak],.ng-cloak,.x-ng-cloak,.ng-hide:not(.ng-hide-animate){display:none !important;}ng\\:form{display:block;}.ng-animate-shim{visibility:hidden;}.ng-anchor{position:absolute;}</style>');
-},{}],9:[function(_dereq_,module,exports){
+},{}],10:[function(_dereq_,module,exports){
 _dereq_('./angular');
 module.exports = angular;
 
-},{"./angular":8}],10:[function(_dereq_,module,exports){
+},{"./angular":9}],11:[function(_dereq_,module,exports){
 // https://github.com/Gillardo/bootstrap-ui-datetime-picker
 // Version: 2.6.3
 // Released: 2018-04-25 
@@ -47437,7 +47592,7 @@ angular.module('ui.bootstrap.datetimepicker').run(['$templateCache', function($t
 if(typeof exports === 'object' && typeof module === 'object') {
     module.exports = 'ui.bootstrap.datetimepicker';
 }
-},{}],11:[function(_dereq_,module,exports){
+},{}],12:[function(_dereq_,module,exports){
 // This file is autogenerated via the `commonjs` Grunt task. You can require() this file in a CommonJS environment.
 _dereq_('../../js/transition.js')
 _dereq_('../../js/alert.js')
@@ -47451,7 +47606,7 @@ _dereq_('../../js/popover.js')
 _dereq_('../../js/scrollspy.js')
 _dereq_('../../js/tab.js')
 _dereq_('../../js/affix.js')
-},{"../../js/affix.js":12,"../../js/alert.js":13,"../../js/button.js":14,"../../js/carousel.js":15,"../../js/collapse.js":16,"../../js/dropdown.js":17,"../../js/modal.js":18,"../../js/popover.js":19,"../../js/scrollspy.js":20,"../../js/tab.js":21,"../../js/tooltip.js":22,"../../js/transition.js":23}],12:[function(_dereq_,module,exports){
+},{"../../js/affix.js":13,"../../js/alert.js":14,"../../js/button.js":15,"../../js/carousel.js":16,"../../js/collapse.js":17,"../../js/dropdown.js":18,"../../js/modal.js":19,"../../js/popover.js":20,"../../js/scrollspy.js":21,"../../js/tab.js":22,"../../js/tooltip.js":23,"../../js/transition.js":24}],13:[function(_dereq_,module,exports){
 /* ========================================================================
  * Bootstrap: affix.js v3.3.7
  * http://getbootstrap.com/javascript/#affix
@@ -47615,7 +47770,7 @@ _dereq_('../../js/affix.js')
 
 }(jQuery);
 
-},{}],13:[function(_dereq_,module,exports){
+},{}],14:[function(_dereq_,module,exports){
 /* ========================================================================
  * Bootstrap: alert.js v3.3.7
  * http://getbootstrap.com/javascript/#alerts
@@ -47711,7 +47866,7 @@ _dereq_('../../js/affix.js')
 
 }(jQuery);
 
-},{}],14:[function(_dereq_,module,exports){
+},{}],15:[function(_dereq_,module,exports){
 /* ========================================================================
  * Bootstrap: button.js v3.3.7
  * http://getbootstrap.com/javascript/#buttons
@@ -47838,7 +47993,7 @@ _dereq_('../../js/affix.js')
 
 }(jQuery);
 
-},{}],15:[function(_dereq_,module,exports){
+},{}],16:[function(_dereq_,module,exports){
 /* ========================================================================
  * Bootstrap: carousel.js v3.3.7
  * http://getbootstrap.com/javascript/#carousel
@@ -48077,7 +48232,7 @@ _dereq_('../../js/affix.js')
 
 }(jQuery);
 
-},{}],16:[function(_dereq_,module,exports){
+},{}],17:[function(_dereq_,module,exports){
 /* ========================================================================
  * Bootstrap: collapse.js v3.3.7
  * http://getbootstrap.com/javascript/#collapse
@@ -48291,7 +48446,7 @@ _dereq_('../../js/affix.js')
 
 }(jQuery);
 
-},{}],17:[function(_dereq_,module,exports){
+},{}],18:[function(_dereq_,module,exports){
 /* ========================================================================
  * Bootstrap: dropdown.js v3.3.7
  * http://getbootstrap.com/javascript/#dropdowns
@@ -48458,7 +48613,7 @@ _dereq_('../../js/affix.js')
 
 }(jQuery);
 
-},{}],18:[function(_dereq_,module,exports){
+},{}],19:[function(_dereq_,module,exports){
 /* ========================================================================
  * Bootstrap: modal.js v3.3.7
  * http://getbootstrap.com/javascript/#modals
@@ -48799,7 +48954,7 @@ _dereq_('../../js/affix.js')
 
 }(jQuery);
 
-},{}],19:[function(_dereq_,module,exports){
+},{}],20:[function(_dereq_,module,exports){
 /* ========================================================================
  * Bootstrap: popover.js v3.3.7
  * http://getbootstrap.com/javascript/#popovers
@@ -48909,7 +49064,7 @@ _dereq_('../../js/affix.js')
 
 }(jQuery);
 
-},{}],20:[function(_dereq_,module,exports){
+},{}],21:[function(_dereq_,module,exports){
 /* ========================================================================
  * Bootstrap: scrollspy.js v3.3.7
  * http://getbootstrap.com/javascript/#scrollspy
@@ -49083,7 +49238,7 @@ _dereq_('../../js/affix.js')
 
 }(jQuery);
 
-},{}],21:[function(_dereq_,module,exports){
+},{}],22:[function(_dereq_,module,exports){
 /* ========================================================================
  * Bootstrap: tab.js v3.3.7
  * http://getbootstrap.com/javascript/#tabs
@@ -49240,7 +49395,7 @@ _dereq_('../../js/affix.js')
 
 }(jQuery);
 
-},{}],22:[function(_dereq_,module,exports){
+},{}],23:[function(_dereq_,module,exports){
 /* ========================================================================
  * Bootstrap: tooltip.js v3.3.7
  * http://getbootstrap.com/javascript/#tooltip
@@ -49762,7 +49917,7 @@ _dereq_('../../js/affix.js')
 
 }(jQuery);
 
-},{}],23:[function(_dereq_,module,exports){
+},{}],24:[function(_dereq_,module,exports){
 /* ========================================================================
  * Bootstrap: transition.js v3.3.7
  * http://getbootstrap.com/javascript/#transitions
@@ -49823,7 +49978,7 @@ _dereq_('../../js/affix.js')
 
 }(jQuery);
 
-},{}],24:[function(_dereq_,module,exports){
+},{}],25:[function(_dereq_,module,exports){
 exports.defaults = {};
 
 exports.set = function(name, value, options) {
@@ -49918,7 +50073,2104 @@ exports.all = function() {
   return all;
 };
 
-},{}],25:[function(_dereq_,module,exports){
+},{}],26:[function(_dereq_,module,exports){
+module.exports = function (it) {
+  if (typeof it != 'function') throw TypeError(it + ' is not a function!');
+  return it;
+};
+
+},{}],27:[function(_dereq_,module,exports){
+// 22.1.3.31 Array.prototype[@@unscopables]
+var UNSCOPABLES = _dereq_('./_wks')('unscopables');
+var ArrayProto = Array.prototype;
+if (ArrayProto[UNSCOPABLES] == undefined) _dereq_('./_hide')(ArrayProto, UNSCOPABLES, {});
+module.exports = function (key) {
+  ArrayProto[UNSCOPABLES][key] = true;
+};
+
+},{"./_hide":51,"./_wks":102}],28:[function(_dereq_,module,exports){
+var isObject = _dereq_('./_is-object');
+module.exports = function (it) {
+  if (!isObject(it)) throw TypeError(it + ' is not an object!');
+  return it;
+};
+
+},{"./_is-object":59}],29:[function(_dereq_,module,exports){
+// false -> Array#indexOf
+// true  -> Array#includes
+var toIObject = _dereq_('./_to-iobject');
+var toLength = _dereq_('./_to-length');
+var toAbsoluteIndex = _dereq_('./_to-absolute-index');
+module.exports = function (IS_INCLUDES) {
+  return function ($this, el, fromIndex) {
+    var O = toIObject($this);
+    var length = toLength(O.length);
+    var index = toAbsoluteIndex(fromIndex, length);
+    var value;
+    // Array#includes uses SameValueZero equality algorithm
+    // eslint-disable-next-line no-self-compare
+    if (IS_INCLUDES && el != el) while (length > index) {
+      value = O[index++];
+      // eslint-disable-next-line no-self-compare
+      if (value != value) return true;
+    // Array#indexOf ignores holes, Array#includes - not
+    } else for (;length > index; index++) if (IS_INCLUDES || index in O) {
+      if (O[index] === el) return IS_INCLUDES || index || 0;
+    } return !IS_INCLUDES && -1;
+  };
+};
+
+},{"./_to-absolute-index":93,"./_to-iobject":95,"./_to-length":96}],30:[function(_dereq_,module,exports){
+// 0 -> Array#forEach
+// 1 -> Array#map
+// 2 -> Array#filter
+// 3 -> Array#some
+// 4 -> Array#every
+// 5 -> Array#find
+// 6 -> Array#findIndex
+var ctx = _dereq_('./_ctx');
+var IObject = _dereq_('./_iobject');
+var toObject = _dereq_('./_to-object');
+var toLength = _dereq_('./_to-length');
+var asc = _dereq_('./_array-species-create');
+module.exports = function (TYPE, $create) {
+  var IS_MAP = TYPE == 1;
+  var IS_FILTER = TYPE == 2;
+  var IS_SOME = TYPE == 3;
+  var IS_EVERY = TYPE == 4;
+  var IS_FIND_INDEX = TYPE == 6;
+  var NO_HOLES = TYPE == 5 || IS_FIND_INDEX;
+  var create = $create || asc;
+  return function ($this, callbackfn, that) {
+    var O = toObject($this);
+    var self = IObject(O);
+    var f = ctx(callbackfn, that, 3);
+    var length = toLength(self.length);
+    var index = 0;
+    var result = IS_MAP ? create($this, length) : IS_FILTER ? create($this, 0) : undefined;
+    var val, res;
+    for (;length > index; index++) if (NO_HOLES || index in self) {
+      val = self[index];
+      res = f(val, index, O);
+      if (TYPE) {
+        if (IS_MAP) result[index] = res;   // map
+        else if (res) switch (TYPE) {
+          case 3: return true;             // some
+          case 5: return val;              // find
+          case 6: return index;            // findIndex
+          case 2: result.push(val);        // filter
+        } else if (IS_EVERY) return false; // every
+      }
+    }
+    return IS_FIND_INDEX ? -1 : IS_SOME || IS_EVERY ? IS_EVERY : result;
+  };
+};
+
+},{"./_array-species-create":32,"./_ctx":38,"./_iobject":56,"./_to-length":96,"./_to-object":97}],31:[function(_dereq_,module,exports){
+var isObject = _dereq_('./_is-object');
+var isArray = _dereq_('./_is-array');
+var SPECIES = _dereq_('./_wks')('species');
+
+module.exports = function (original) {
+  var C;
+  if (isArray(original)) {
+    C = original.constructor;
+    // cross-realm fallback
+    if (typeof C == 'function' && (C === Array || isArray(C.prototype))) C = undefined;
+    if (isObject(C)) {
+      C = C[SPECIES];
+      if (C === null) C = undefined;
+    }
+  } return C === undefined ? Array : C;
+};
+
+},{"./_is-array":58,"./_is-object":59,"./_wks":102}],32:[function(_dereq_,module,exports){
+// 9.4.2.3 ArraySpeciesCreate(originalArray, length)
+var speciesConstructor = _dereq_('./_array-species-constructor');
+
+module.exports = function (original, length) {
+  return new (speciesConstructor(original))(length);
+};
+
+},{"./_array-species-constructor":31}],33:[function(_dereq_,module,exports){
+'use strict';
+var aFunction = _dereq_('./_a-function');
+var isObject = _dereq_('./_is-object');
+var invoke = _dereq_('./_invoke');
+var arraySlice = [].slice;
+var factories = {};
+
+var construct = function (F, len, args) {
+  if (!(len in factories)) {
+    for (var n = [], i = 0; i < len; i++) n[i] = 'a[' + i + ']';
+    // eslint-disable-next-line no-new-func
+    factories[len] = Function('F,a', 'return new F(' + n.join(',') + ')');
+  } return factories[len](F, args);
+};
+
+module.exports = Function.bind || function bind(that /* , ...args */) {
+  var fn = aFunction(this);
+  var partArgs = arraySlice.call(arguments, 1);
+  var bound = function (/* args... */) {
+    var args = partArgs.concat(arraySlice.call(arguments));
+    return this instanceof bound ? construct(fn, args.length, args) : invoke(fn, args, that);
+  };
+  if (isObject(fn.prototype)) bound.prototype = fn.prototype;
+  return bound;
+};
+
+},{"./_a-function":26,"./_invoke":55,"./_is-object":59}],34:[function(_dereq_,module,exports){
+// getting tag from 19.1.3.6 Object.prototype.toString()
+var cof = _dereq_('./_cof');
+var TAG = _dereq_('./_wks')('toStringTag');
+// ES3 wrong here
+var ARG = cof(function () { return arguments; }()) == 'Arguments';
+
+// fallback for IE11 Script Access Denied error
+var tryGet = function (it, key) {
+  try {
+    return it[key];
+  } catch (e) { /* empty */ }
+};
+
+module.exports = function (it) {
+  var O, T, B;
+  return it === undefined ? 'Undefined' : it === null ? 'Null'
+    // @@toStringTag case
+    : typeof (T = tryGet(O = Object(it), TAG)) == 'string' ? T
+    // builtinTag case
+    : ARG ? cof(O)
+    // ES3 arguments fallback
+    : (B = cof(O)) == 'Object' && typeof O.callee == 'function' ? 'Arguments' : B;
+};
+
+},{"./_cof":35,"./_wks":102}],35:[function(_dereq_,module,exports){
+var toString = {}.toString;
+
+module.exports = function (it) {
+  return toString.call(it).slice(8, -1);
+};
+
+},{}],36:[function(_dereq_,module,exports){
+var core = module.exports = { version: '2.5.7' };
+if (typeof __e == 'number') __e = core; // eslint-disable-line no-undef
+
+},{}],37:[function(_dereq_,module,exports){
+'use strict';
+var $defineProperty = _dereq_('./_object-dp');
+var createDesc = _dereq_('./_property-desc');
+
+module.exports = function (object, index, value) {
+  if (index in object) $defineProperty.f(object, index, createDesc(0, value));
+  else object[index] = value;
+};
+
+},{"./_object-dp":71,"./_property-desc":82}],38:[function(_dereq_,module,exports){
+// optional / simple context binding
+var aFunction = _dereq_('./_a-function');
+module.exports = function (fn, that, length) {
+  aFunction(fn);
+  if (that === undefined) return fn;
+  switch (length) {
+    case 1: return function (a) {
+      return fn.call(that, a);
+    };
+    case 2: return function (a, b) {
+      return fn.call(that, a, b);
+    };
+    case 3: return function (a, b, c) {
+      return fn.call(that, a, b, c);
+    };
+  }
+  return function (/* ...args */) {
+    return fn.apply(that, arguments);
+  };
+};
+
+},{"./_a-function":26}],39:[function(_dereq_,module,exports){
+// 7.2.1 RequireObjectCoercible(argument)
+module.exports = function (it) {
+  if (it == undefined) throw TypeError("Can't call method on  " + it);
+  return it;
+};
+
+},{}],40:[function(_dereq_,module,exports){
+// Thank's IE8 for his funny defineProperty
+module.exports = !_dereq_('./_fails')(function () {
+  return Object.defineProperty({}, 'a', { get: function () { return 7; } }).a != 7;
+});
+
+},{"./_fails":46}],41:[function(_dereq_,module,exports){
+var isObject = _dereq_('./_is-object');
+var document = _dereq_('./_global').document;
+// typeof document.createElement is 'object' in old IE
+var is = isObject(document) && isObject(document.createElement);
+module.exports = function (it) {
+  return is ? document.createElement(it) : {};
+};
+
+},{"./_global":49,"./_is-object":59}],42:[function(_dereq_,module,exports){
+// IE 8- don't enum bug keys
+module.exports = (
+  'constructor,hasOwnProperty,isPrototypeOf,propertyIsEnumerable,toLocaleString,toString,valueOf'
+).split(',');
+
+},{}],43:[function(_dereq_,module,exports){
+// all enumerable object keys, includes symbols
+var getKeys = _dereq_('./_object-keys');
+var gOPS = _dereq_('./_object-gops');
+var pIE = _dereq_('./_object-pie');
+module.exports = function (it) {
+  var result = getKeys(it);
+  var getSymbols = gOPS.f;
+  if (getSymbols) {
+    var symbols = getSymbols(it);
+    var isEnum = pIE.f;
+    var i = 0;
+    var key;
+    while (symbols.length > i) if (isEnum.call(it, key = symbols[i++])) result.push(key);
+  } return result;
+};
+
+},{"./_object-gops":76,"./_object-keys":79,"./_object-pie":80}],44:[function(_dereq_,module,exports){
+var global = _dereq_('./_global');
+var core = _dereq_('./_core');
+var hide = _dereq_('./_hide');
+var redefine = _dereq_('./_redefine');
+var ctx = _dereq_('./_ctx');
+var PROTOTYPE = 'prototype';
+
+var $export = function (type, name, source) {
+  var IS_FORCED = type & $export.F;
+  var IS_GLOBAL = type & $export.G;
+  var IS_STATIC = type & $export.S;
+  var IS_PROTO = type & $export.P;
+  var IS_BIND = type & $export.B;
+  var target = IS_GLOBAL ? global : IS_STATIC ? global[name] || (global[name] = {}) : (global[name] || {})[PROTOTYPE];
+  var exports = IS_GLOBAL ? core : core[name] || (core[name] = {});
+  var expProto = exports[PROTOTYPE] || (exports[PROTOTYPE] = {});
+  var key, own, out, exp;
+  if (IS_GLOBAL) source = name;
+  for (key in source) {
+    // contains in native
+    own = !IS_FORCED && target && target[key] !== undefined;
+    // export native or passed
+    out = (own ? target : source)[key];
+    // bind timers to global for call from export context
+    exp = IS_BIND && own ? ctx(out, global) : IS_PROTO && typeof out == 'function' ? ctx(Function.call, out) : out;
+    // extend global
+    if (target) redefine(target, key, out, type & $export.U);
+    // export
+    if (exports[key] != out) hide(exports, key, exp);
+    if (IS_PROTO && expProto[key] != out) expProto[key] = out;
+  }
+};
+global.core = core;
+// type bitmap
+$export.F = 1;   // forced
+$export.G = 2;   // global
+$export.S = 4;   // static
+$export.P = 8;   // proto
+$export.B = 16;  // bind
+$export.W = 32;  // wrap
+$export.U = 64;  // safe
+$export.R = 128; // real proto method for `library`
+module.exports = $export;
+
+},{"./_core":36,"./_ctx":38,"./_global":49,"./_hide":51,"./_redefine":83}],45:[function(_dereq_,module,exports){
+var MATCH = _dereq_('./_wks')('match');
+module.exports = function (KEY) {
+  var re = /./;
+  try {
+    '/./'[KEY](re);
+  } catch (e) {
+    try {
+      re[MATCH] = false;
+      return !'/./'[KEY](re);
+    } catch (f) { /* empty */ }
+  } return true;
+};
+
+},{"./_wks":102}],46:[function(_dereq_,module,exports){
+module.exports = function (exec) {
+  try {
+    return !!exec();
+  } catch (e) {
+    return true;
+  }
+};
+
+},{}],47:[function(_dereq_,module,exports){
+'use strict';
+var hide = _dereq_('./_hide');
+var redefine = _dereq_('./_redefine');
+var fails = _dereq_('./_fails');
+var defined = _dereq_('./_defined');
+var wks = _dereq_('./_wks');
+
+module.exports = function (KEY, length, exec) {
+  var SYMBOL = wks(KEY);
+  var fns = exec(defined, SYMBOL, ''[KEY]);
+  var strfn = fns[0];
+  var rxfn = fns[1];
+  if (fails(function () {
+    var O = {};
+    O[SYMBOL] = function () { return 7; };
+    return ''[KEY](O) != 7;
+  })) {
+    redefine(String.prototype, KEY, strfn);
+    hide(RegExp.prototype, SYMBOL, length == 2
+      // 21.2.5.8 RegExp.prototype[@@replace](string, replaceValue)
+      // 21.2.5.11 RegExp.prototype[@@split](string, limit)
+      ? function (string, arg) { return rxfn.call(string, this, arg); }
+      // 21.2.5.6 RegExp.prototype[@@match](string)
+      // 21.2.5.9 RegExp.prototype[@@search](string)
+      : function (string) { return rxfn.call(string, this); }
+    );
+  }
+};
+
+},{"./_defined":39,"./_fails":46,"./_hide":51,"./_redefine":83,"./_wks":102}],48:[function(_dereq_,module,exports){
+'use strict';
+// 21.2.5.3 get RegExp.prototype.flags
+var anObject = _dereq_('./_an-object');
+module.exports = function () {
+  var that = anObject(this);
+  var result = '';
+  if (that.global) result += 'g';
+  if (that.ignoreCase) result += 'i';
+  if (that.multiline) result += 'm';
+  if (that.unicode) result += 'u';
+  if (that.sticky) result += 'y';
+  return result;
+};
+
+},{"./_an-object":28}],49:[function(_dereq_,module,exports){
+// https://github.com/zloirock/core-js/issues/86#issuecomment-115759028
+var global = module.exports = typeof window != 'undefined' && window.Math == Math
+  ? window : typeof self != 'undefined' && self.Math == Math ? self
+  // eslint-disable-next-line no-new-func
+  : Function('return this')();
+if (typeof __g == 'number') __g = global; // eslint-disable-line no-undef
+
+},{}],50:[function(_dereq_,module,exports){
+var hasOwnProperty = {}.hasOwnProperty;
+module.exports = function (it, key) {
+  return hasOwnProperty.call(it, key);
+};
+
+},{}],51:[function(_dereq_,module,exports){
+var dP = _dereq_('./_object-dp');
+var createDesc = _dereq_('./_property-desc');
+module.exports = _dereq_('./_descriptors') ? function (object, key, value) {
+  return dP.f(object, key, createDesc(1, value));
+} : function (object, key, value) {
+  object[key] = value;
+  return object;
+};
+
+},{"./_descriptors":40,"./_object-dp":71,"./_property-desc":82}],52:[function(_dereq_,module,exports){
+var document = _dereq_('./_global').document;
+module.exports = document && document.documentElement;
+
+},{"./_global":49}],53:[function(_dereq_,module,exports){
+module.exports = !_dereq_('./_descriptors') && !_dereq_('./_fails')(function () {
+  return Object.defineProperty(_dereq_('./_dom-create')('div'), 'a', { get: function () { return 7; } }).a != 7;
+});
+
+},{"./_descriptors":40,"./_dom-create":41,"./_fails":46}],54:[function(_dereq_,module,exports){
+var isObject = _dereq_('./_is-object');
+var setPrototypeOf = _dereq_('./_set-proto').set;
+module.exports = function (that, target, C) {
+  var S = target.constructor;
+  var P;
+  if (S !== C && typeof S == 'function' && (P = S.prototype) !== C.prototype && isObject(P) && setPrototypeOf) {
+    setPrototypeOf(that, P);
+  } return that;
+};
+
+},{"./_is-object":59,"./_set-proto":84}],55:[function(_dereq_,module,exports){
+// fast apply, http://jsperf.lnkit.com/fast-apply/5
+module.exports = function (fn, args, that) {
+  var un = that === undefined;
+  switch (args.length) {
+    case 0: return un ? fn()
+                      : fn.call(that);
+    case 1: return un ? fn(args[0])
+                      : fn.call(that, args[0]);
+    case 2: return un ? fn(args[0], args[1])
+                      : fn.call(that, args[0], args[1]);
+    case 3: return un ? fn(args[0], args[1], args[2])
+                      : fn.call(that, args[0], args[1], args[2]);
+    case 4: return un ? fn(args[0], args[1], args[2], args[3])
+                      : fn.call(that, args[0], args[1], args[2], args[3]);
+  } return fn.apply(that, args);
+};
+
+},{}],56:[function(_dereq_,module,exports){
+// fallback for non-array-like ES3 and non-enumerable old V8 strings
+var cof = _dereq_('./_cof');
+// eslint-disable-next-line no-prototype-builtins
+module.exports = Object('z').propertyIsEnumerable(0) ? Object : function (it) {
+  return cof(it) == 'String' ? it.split('') : Object(it);
+};
+
+},{"./_cof":35}],57:[function(_dereq_,module,exports){
+// check on default Array iterator
+var Iterators = _dereq_('./_iterators');
+var ITERATOR = _dereq_('./_wks')('iterator');
+var ArrayProto = Array.prototype;
+
+module.exports = function (it) {
+  return it !== undefined && (Iterators.Array === it || ArrayProto[ITERATOR] === it);
+};
+
+},{"./_iterators":66,"./_wks":102}],58:[function(_dereq_,module,exports){
+// 7.2.2 IsArray(argument)
+var cof = _dereq_('./_cof');
+module.exports = Array.isArray || function isArray(arg) {
+  return cof(arg) == 'Array';
+};
+
+},{"./_cof":35}],59:[function(_dereq_,module,exports){
+module.exports = function (it) {
+  return typeof it === 'object' ? it !== null : typeof it === 'function';
+};
+
+},{}],60:[function(_dereq_,module,exports){
+// 7.2.8 IsRegExp(argument)
+var isObject = _dereq_('./_is-object');
+var cof = _dereq_('./_cof');
+var MATCH = _dereq_('./_wks')('match');
+module.exports = function (it) {
+  var isRegExp;
+  return isObject(it) && ((isRegExp = it[MATCH]) !== undefined ? !!isRegExp : cof(it) == 'RegExp');
+};
+
+},{"./_cof":35,"./_is-object":59,"./_wks":102}],61:[function(_dereq_,module,exports){
+// call something on iterator step with safe closing on error
+var anObject = _dereq_('./_an-object');
+module.exports = function (iterator, fn, value, entries) {
+  try {
+    return entries ? fn(anObject(value)[0], value[1]) : fn(value);
+  // 7.4.6 IteratorClose(iterator, completion)
+  } catch (e) {
+    var ret = iterator['return'];
+    if (ret !== undefined) anObject(ret.call(iterator));
+    throw e;
+  }
+};
+
+},{"./_an-object":28}],62:[function(_dereq_,module,exports){
+'use strict';
+var create = _dereq_('./_object-create');
+var descriptor = _dereq_('./_property-desc');
+var setToStringTag = _dereq_('./_set-to-string-tag');
+var IteratorPrototype = {};
+
+// 25.1.2.1.1 %IteratorPrototype%[@@iterator]()
+_dereq_('./_hide')(IteratorPrototype, _dereq_('./_wks')('iterator'), function () { return this; });
+
+module.exports = function (Constructor, NAME, next) {
+  Constructor.prototype = create(IteratorPrototype, { next: descriptor(1, next) });
+  setToStringTag(Constructor, NAME + ' Iterator');
+};
+
+},{"./_hide":51,"./_object-create":70,"./_property-desc":82,"./_set-to-string-tag":86,"./_wks":102}],63:[function(_dereq_,module,exports){
+'use strict';
+var LIBRARY = _dereq_('./_library');
+var $export = _dereq_('./_export');
+var redefine = _dereq_('./_redefine');
+var hide = _dereq_('./_hide');
+var Iterators = _dereq_('./_iterators');
+var $iterCreate = _dereq_('./_iter-create');
+var setToStringTag = _dereq_('./_set-to-string-tag');
+var getPrototypeOf = _dereq_('./_object-gpo');
+var ITERATOR = _dereq_('./_wks')('iterator');
+var BUGGY = !([].keys && 'next' in [].keys()); // Safari has buggy iterators w/o `next`
+var FF_ITERATOR = '@@iterator';
+var KEYS = 'keys';
+var VALUES = 'values';
+
+var returnThis = function () { return this; };
+
+module.exports = function (Base, NAME, Constructor, next, DEFAULT, IS_SET, FORCED) {
+  $iterCreate(Constructor, NAME, next);
+  var getMethod = function (kind) {
+    if (!BUGGY && kind in proto) return proto[kind];
+    switch (kind) {
+      case KEYS: return function keys() { return new Constructor(this, kind); };
+      case VALUES: return function values() { return new Constructor(this, kind); };
+    } return function entries() { return new Constructor(this, kind); };
+  };
+  var TAG = NAME + ' Iterator';
+  var DEF_VALUES = DEFAULT == VALUES;
+  var VALUES_BUG = false;
+  var proto = Base.prototype;
+  var $native = proto[ITERATOR] || proto[FF_ITERATOR] || DEFAULT && proto[DEFAULT];
+  var $default = $native || getMethod(DEFAULT);
+  var $entries = DEFAULT ? !DEF_VALUES ? $default : getMethod('entries') : undefined;
+  var $anyNative = NAME == 'Array' ? proto.entries || $native : $native;
+  var methods, key, IteratorPrototype;
+  // Fix native
+  if ($anyNative) {
+    IteratorPrototype = getPrototypeOf($anyNative.call(new Base()));
+    if (IteratorPrototype !== Object.prototype && IteratorPrototype.next) {
+      // Set @@toStringTag to native iterators
+      setToStringTag(IteratorPrototype, TAG, true);
+      // fix for some old engines
+      if (!LIBRARY && typeof IteratorPrototype[ITERATOR] != 'function') hide(IteratorPrototype, ITERATOR, returnThis);
+    }
+  }
+  // fix Array#{values, @@iterator}.name in V8 / FF
+  if (DEF_VALUES && $native && $native.name !== VALUES) {
+    VALUES_BUG = true;
+    $default = function values() { return $native.call(this); };
+  }
+  // Define iterator
+  if ((!LIBRARY || FORCED) && (BUGGY || VALUES_BUG || !proto[ITERATOR])) {
+    hide(proto, ITERATOR, $default);
+  }
+  // Plug for library
+  Iterators[NAME] = $default;
+  Iterators[TAG] = returnThis;
+  if (DEFAULT) {
+    methods = {
+      values: DEF_VALUES ? $default : getMethod(VALUES),
+      keys: IS_SET ? $default : getMethod(KEYS),
+      entries: $entries
+    };
+    if (FORCED) for (key in methods) {
+      if (!(key in proto)) redefine(proto, key, methods[key]);
+    } else $export($export.P + $export.F * (BUGGY || VALUES_BUG), NAME, methods);
+  }
+  return methods;
+};
+
+},{"./_export":44,"./_hide":51,"./_iter-create":62,"./_iterators":66,"./_library":67,"./_object-gpo":77,"./_redefine":83,"./_set-to-string-tag":86,"./_wks":102}],64:[function(_dereq_,module,exports){
+var ITERATOR = _dereq_('./_wks')('iterator');
+var SAFE_CLOSING = false;
+
+try {
+  var riter = [7][ITERATOR]();
+  riter['return'] = function () { SAFE_CLOSING = true; };
+  // eslint-disable-next-line no-throw-literal
+  Array.from(riter, function () { throw 2; });
+} catch (e) { /* empty */ }
+
+module.exports = function (exec, skipClosing) {
+  if (!skipClosing && !SAFE_CLOSING) return false;
+  var safe = false;
+  try {
+    var arr = [7];
+    var iter = arr[ITERATOR]();
+    iter.next = function () { return { done: safe = true }; };
+    arr[ITERATOR] = function () { return iter; };
+    exec(arr);
+  } catch (e) { /* empty */ }
+  return safe;
+};
+
+},{"./_wks":102}],65:[function(_dereq_,module,exports){
+module.exports = function (done, value) {
+  return { value: value, done: !!done };
+};
+
+},{}],66:[function(_dereq_,module,exports){
+module.exports = {};
+
+},{}],67:[function(_dereq_,module,exports){
+module.exports = false;
+
+},{}],68:[function(_dereq_,module,exports){
+var META = _dereq_('./_uid')('meta');
+var isObject = _dereq_('./_is-object');
+var has = _dereq_('./_has');
+var setDesc = _dereq_('./_object-dp').f;
+var id = 0;
+var isExtensible = Object.isExtensible || function () {
+  return true;
+};
+var FREEZE = !_dereq_('./_fails')(function () {
+  return isExtensible(Object.preventExtensions({}));
+});
+var setMeta = function (it) {
+  setDesc(it, META, { value: {
+    i: 'O' + ++id, // object ID
+    w: {}          // weak collections IDs
+  } });
+};
+var fastKey = function (it, create) {
+  // return primitive with prefix
+  if (!isObject(it)) return typeof it == 'symbol' ? it : (typeof it == 'string' ? 'S' : 'P') + it;
+  if (!has(it, META)) {
+    // can't set metadata to uncaught frozen object
+    if (!isExtensible(it)) return 'F';
+    // not necessary to add metadata
+    if (!create) return 'E';
+    // add missing metadata
+    setMeta(it);
+  // return object ID
+  } return it[META].i;
+};
+var getWeak = function (it, create) {
+  if (!has(it, META)) {
+    // can't set metadata to uncaught frozen object
+    if (!isExtensible(it)) return true;
+    // not necessary to add metadata
+    if (!create) return false;
+    // add missing metadata
+    setMeta(it);
+  // return hash weak collections IDs
+  } return it[META].w;
+};
+// add metadata on freeze-family methods calling
+var onFreeze = function (it) {
+  if (FREEZE && meta.NEED && isExtensible(it) && !has(it, META)) setMeta(it);
+  return it;
+};
+var meta = module.exports = {
+  KEY: META,
+  NEED: false,
+  fastKey: fastKey,
+  getWeak: getWeak,
+  onFreeze: onFreeze
+};
+
+},{"./_fails":46,"./_has":50,"./_is-object":59,"./_object-dp":71,"./_uid":99}],69:[function(_dereq_,module,exports){
+'use strict';
+// 19.1.2.1 Object.assign(target, source, ...)
+var getKeys = _dereq_('./_object-keys');
+var gOPS = _dereq_('./_object-gops');
+var pIE = _dereq_('./_object-pie');
+var toObject = _dereq_('./_to-object');
+var IObject = _dereq_('./_iobject');
+var $assign = Object.assign;
+
+// should work with symbols and should have deterministic property order (V8 bug)
+module.exports = !$assign || _dereq_('./_fails')(function () {
+  var A = {};
+  var B = {};
+  // eslint-disable-next-line no-undef
+  var S = Symbol();
+  var K = 'abcdefghijklmnopqrst';
+  A[S] = 7;
+  K.split('').forEach(function (k) { B[k] = k; });
+  return $assign({}, A)[S] != 7 || Object.keys($assign({}, B)).join('') != K;
+}) ? function assign(target, source) { // eslint-disable-line no-unused-vars
+  var T = toObject(target);
+  var aLen = arguments.length;
+  var index = 1;
+  var getSymbols = gOPS.f;
+  var isEnum = pIE.f;
+  while (aLen > index) {
+    var S = IObject(arguments[index++]);
+    var keys = getSymbols ? getKeys(S).concat(getSymbols(S)) : getKeys(S);
+    var length = keys.length;
+    var j = 0;
+    var key;
+    while (length > j) if (isEnum.call(S, key = keys[j++])) T[key] = S[key];
+  } return T;
+} : $assign;
+
+},{"./_fails":46,"./_iobject":56,"./_object-gops":76,"./_object-keys":79,"./_object-pie":80,"./_to-object":97}],70:[function(_dereq_,module,exports){
+// 19.1.2.2 / 15.2.3.5 Object.create(O [, Properties])
+var anObject = _dereq_('./_an-object');
+var dPs = _dereq_('./_object-dps');
+var enumBugKeys = _dereq_('./_enum-bug-keys');
+var IE_PROTO = _dereq_('./_shared-key')('IE_PROTO');
+var Empty = function () { /* empty */ };
+var PROTOTYPE = 'prototype';
+
+// Create object with fake `null` prototype: use iframe Object with cleared prototype
+var createDict = function () {
+  // Thrash, waste and sodomy: IE GC bug
+  var iframe = _dereq_('./_dom-create')('iframe');
+  var i = enumBugKeys.length;
+  var lt = '<';
+  var gt = '>';
+  var iframeDocument;
+  iframe.style.display = 'none';
+  _dereq_('./_html').appendChild(iframe);
+  iframe.src = 'javascript:'; // eslint-disable-line no-script-url
+  // createDict = iframe.contentWindow.Object;
+  // html.removeChild(iframe);
+  iframeDocument = iframe.contentWindow.document;
+  iframeDocument.open();
+  iframeDocument.write(lt + 'script' + gt + 'document.F=Object' + lt + '/script' + gt);
+  iframeDocument.close();
+  createDict = iframeDocument.F;
+  while (i--) delete createDict[PROTOTYPE][enumBugKeys[i]];
+  return createDict();
+};
+
+module.exports = Object.create || function create(O, Properties) {
+  var result;
+  if (O !== null) {
+    Empty[PROTOTYPE] = anObject(O);
+    result = new Empty();
+    Empty[PROTOTYPE] = null;
+    // add "__proto__" for Object.getPrototypeOf polyfill
+    result[IE_PROTO] = O;
+  } else result = createDict();
+  return Properties === undefined ? result : dPs(result, Properties);
+};
+
+},{"./_an-object":28,"./_dom-create":41,"./_enum-bug-keys":42,"./_html":52,"./_object-dps":72,"./_shared-key":87}],71:[function(_dereq_,module,exports){
+var anObject = _dereq_('./_an-object');
+var IE8_DOM_DEFINE = _dereq_('./_ie8-dom-define');
+var toPrimitive = _dereq_('./_to-primitive');
+var dP = Object.defineProperty;
+
+exports.f = _dereq_('./_descriptors') ? Object.defineProperty : function defineProperty(O, P, Attributes) {
+  anObject(O);
+  P = toPrimitive(P, true);
+  anObject(Attributes);
+  if (IE8_DOM_DEFINE) try {
+    return dP(O, P, Attributes);
+  } catch (e) { /* empty */ }
+  if ('get' in Attributes || 'set' in Attributes) throw TypeError('Accessors not supported!');
+  if ('value' in Attributes) O[P] = Attributes.value;
+  return O;
+};
+
+},{"./_an-object":28,"./_descriptors":40,"./_ie8-dom-define":53,"./_to-primitive":98}],72:[function(_dereq_,module,exports){
+var dP = _dereq_('./_object-dp');
+var anObject = _dereq_('./_an-object');
+var getKeys = _dereq_('./_object-keys');
+
+module.exports = _dereq_('./_descriptors') ? Object.defineProperties : function defineProperties(O, Properties) {
+  anObject(O);
+  var keys = getKeys(Properties);
+  var length = keys.length;
+  var i = 0;
+  var P;
+  while (length > i) dP.f(O, P = keys[i++], Properties[P]);
+  return O;
+};
+
+},{"./_an-object":28,"./_descriptors":40,"./_object-dp":71,"./_object-keys":79}],73:[function(_dereq_,module,exports){
+var pIE = _dereq_('./_object-pie');
+var createDesc = _dereq_('./_property-desc');
+var toIObject = _dereq_('./_to-iobject');
+var toPrimitive = _dereq_('./_to-primitive');
+var has = _dereq_('./_has');
+var IE8_DOM_DEFINE = _dereq_('./_ie8-dom-define');
+var gOPD = Object.getOwnPropertyDescriptor;
+
+exports.f = _dereq_('./_descriptors') ? gOPD : function getOwnPropertyDescriptor(O, P) {
+  O = toIObject(O);
+  P = toPrimitive(P, true);
+  if (IE8_DOM_DEFINE) try {
+    return gOPD(O, P);
+  } catch (e) { /* empty */ }
+  if (has(O, P)) return createDesc(!pIE.f.call(O, P), O[P]);
+};
+
+},{"./_descriptors":40,"./_has":50,"./_ie8-dom-define":53,"./_object-pie":80,"./_property-desc":82,"./_to-iobject":95,"./_to-primitive":98}],74:[function(_dereq_,module,exports){
+// fallback for IE11 buggy Object.getOwnPropertyNames with iframe and window
+var toIObject = _dereq_('./_to-iobject');
+var gOPN = _dereq_('./_object-gopn').f;
+var toString = {}.toString;
+
+var windowNames = typeof window == 'object' && window && Object.getOwnPropertyNames
+  ? Object.getOwnPropertyNames(window) : [];
+
+var getWindowNames = function (it) {
+  try {
+    return gOPN(it);
+  } catch (e) {
+    return windowNames.slice();
+  }
+};
+
+module.exports.f = function getOwnPropertyNames(it) {
+  return windowNames && toString.call(it) == '[object Window]' ? getWindowNames(it) : gOPN(toIObject(it));
+};
+
+},{"./_object-gopn":75,"./_to-iobject":95}],75:[function(_dereq_,module,exports){
+// 19.1.2.7 / 15.2.3.4 Object.getOwnPropertyNames(O)
+var $keys = _dereq_('./_object-keys-internal');
+var hiddenKeys = _dereq_('./_enum-bug-keys').concat('length', 'prototype');
+
+exports.f = Object.getOwnPropertyNames || function getOwnPropertyNames(O) {
+  return $keys(O, hiddenKeys);
+};
+
+},{"./_enum-bug-keys":42,"./_object-keys-internal":78}],76:[function(_dereq_,module,exports){
+exports.f = Object.getOwnPropertySymbols;
+
+},{}],77:[function(_dereq_,module,exports){
+// 19.1.2.9 / 15.2.3.2 Object.getPrototypeOf(O)
+var has = _dereq_('./_has');
+var toObject = _dereq_('./_to-object');
+var IE_PROTO = _dereq_('./_shared-key')('IE_PROTO');
+var ObjectProto = Object.prototype;
+
+module.exports = Object.getPrototypeOf || function (O) {
+  O = toObject(O);
+  if (has(O, IE_PROTO)) return O[IE_PROTO];
+  if (typeof O.constructor == 'function' && O instanceof O.constructor) {
+    return O.constructor.prototype;
+  } return O instanceof Object ? ObjectProto : null;
+};
+
+},{"./_has":50,"./_shared-key":87,"./_to-object":97}],78:[function(_dereq_,module,exports){
+var has = _dereq_('./_has');
+var toIObject = _dereq_('./_to-iobject');
+var arrayIndexOf = _dereq_('./_array-includes')(false);
+var IE_PROTO = _dereq_('./_shared-key')('IE_PROTO');
+
+module.exports = function (object, names) {
+  var O = toIObject(object);
+  var i = 0;
+  var result = [];
+  var key;
+  for (key in O) if (key != IE_PROTO) has(O, key) && result.push(key);
+  // Don't enum bug & hidden keys
+  while (names.length > i) if (has(O, key = names[i++])) {
+    ~arrayIndexOf(result, key) || result.push(key);
+  }
+  return result;
+};
+
+},{"./_array-includes":29,"./_has":50,"./_shared-key":87,"./_to-iobject":95}],79:[function(_dereq_,module,exports){
+// 19.1.2.14 / 15.2.3.14 Object.keys(O)
+var $keys = _dereq_('./_object-keys-internal');
+var enumBugKeys = _dereq_('./_enum-bug-keys');
+
+module.exports = Object.keys || function keys(O) {
+  return $keys(O, enumBugKeys);
+};
+
+},{"./_enum-bug-keys":42,"./_object-keys-internal":78}],80:[function(_dereq_,module,exports){
+exports.f = {}.propertyIsEnumerable;
+
+},{}],81:[function(_dereq_,module,exports){
+// most Object methods by ES6 should accept primitives
+var $export = _dereq_('./_export');
+var core = _dereq_('./_core');
+var fails = _dereq_('./_fails');
+module.exports = function (KEY, exec) {
+  var fn = (core.Object || {})[KEY] || Object[KEY];
+  var exp = {};
+  exp[KEY] = exec(fn);
+  $export($export.S + $export.F * fails(function () { fn(1); }), 'Object', exp);
+};
+
+},{"./_core":36,"./_export":44,"./_fails":46}],82:[function(_dereq_,module,exports){
+module.exports = function (bitmap, value) {
+  return {
+    enumerable: !(bitmap & 1),
+    configurable: !(bitmap & 2),
+    writable: !(bitmap & 4),
+    value: value
+  };
+};
+
+},{}],83:[function(_dereq_,module,exports){
+var global = _dereq_('./_global');
+var hide = _dereq_('./_hide');
+var has = _dereq_('./_has');
+var SRC = _dereq_('./_uid')('src');
+var TO_STRING = 'toString';
+var $toString = Function[TO_STRING];
+var TPL = ('' + $toString).split(TO_STRING);
+
+_dereq_('./_core').inspectSource = function (it) {
+  return $toString.call(it);
+};
+
+(module.exports = function (O, key, val, safe) {
+  var isFunction = typeof val == 'function';
+  if (isFunction) has(val, 'name') || hide(val, 'name', key);
+  if (O[key] === val) return;
+  if (isFunction) has(val, SRC) || hide(val, SRC, O[key] ? '' + O[key] : TPL.join(String(key)));
+  if (O === global) {
+    O[key] = val;
+  } else if (!safe) {
+    delete O[key];
+    hide(O, key, val);
+  } else if (O[key]) {
+    O[key] = val;
+  } else {
+    hide(O, key, val);
+  }
+// add fake Function#toString for correct work wrapped methods / constructors with methods like LoDash isNative
+})(Function.prototype, TO_STRING, function toString() {
+  return typeof this == 'function' && this[SRC] || $toString.call(this);
+});
+
+},{"./_core":36,"./_global":49,"./_has":50,"./_hide":51,"./_uid":99}],84:[function(_dereq_,module,exports){
+// Works with __proto__ only. Old v8 can't work with null proto objects.
+/* eslint-disable no-proto */
+var isObject = _dereq_('./_is-object');
+var anObject = _dereq_('./_an-object');
+var check = function (O, proto) {
+  anObject(O);
+  if (!isObject(proto) && proto !== null) throw TypeError(proto + ": can't set as prototype!");
+};
+module.exports = {
+  set: Object.setPrototypeOf || ('__proto__' in {} ? // eslint-disable-line
+    function (test, buggy, set) {
+      try {
+        set = _dereq_('./_ctx')(Function.call, _dereq_('./_object-gopd').f(Object.prototype, '__proto__').set, 2);
+        set(test, []);
+        buggy = !(test instanceof Array);
+      } catch (e) { buggy = true; }
+      return function setPrototypeOf(O, proto) {
+        check(O, proto);
+        if (buggy) O.__proto__ = proto;
+        else set(O, proto);
+        return O;
+      };
+    }({}, false) : undefined),
+  check: check
+};
+
+},{"./_an-object":28,"./_ctx":38,"./_is-object":59,"./_object-gopd":73}],85:[function(_dereq_,module,exports){
+'use strict';
+var global = _dereq_('./_global');
+var dP = _dereq_('./_object-dp');
+var DESCRIPTORS = _dereq_('./_descriptors');
+var SPECIES = _dereq_('./_wks')('species');
+
+module.exports = function (KEY) {
+  var C = global[KEY];
+  if (DESCRIPTORS && C && !C[SPECIES]) dP.f(C, SPECIES, {
+    configurable: true,
+    get: function () { return this; }
+  });
+};
+
+},{"./_descriptors":40,"./_global":49,"./_object-dp":71,"./_wks":102}],86:[function(_dereq_,module,exports){
+var def = _dereq_('./_object-dp').f;
+var has = _dereq_('./_has');
+var TAG = _dereq_('./_wks')('toStringTag');
+
+module.exports = function (it, tag, stat) {
+  if (it && !has(it = stat ? it : it.prototype, TAG)) def(it, TAG, { configurable: true, value: tag });
+};
+
+},{"./_has":50,"./_object-dp":71,"./_wks":102}],87:[function(_dereq_,module,exports){
+var shared = _dereq_('./_shared')('keys');
+var uid = _dereq_('./_uid');
+module.exports = function (key) {
+  return shared[key] || (shared[key] = uid(key));
+};
+
+},{"./_shared":88,"./_uid":99}],88:[function(_dereq_,module,exports){
+var core = _dereq_('./_core');
+var global = _dereq_('./_global');
+var SHARED = '__core-js_shared__';
+var store = global[SHARED] || (global[SHARED] = {});
+
+(module.exports = function (key, value) {
+  return store[key] || (store[key] = value !== undefined ? value : {});
+})('versions', []).push({
+  version: core.version,
+  mode: _dereq_('./_library') ? 'pure' : 'global',
+  copyright: '© 2018 Denis Pushkarev (zloirock.ru)'
+});
+
+},{"./_core":36,"./_global":49,"./_library":67}],89:[function(_dereq_,module,exports){
+var toInteger = _dereq_('./_to-integer');
+var defined = _dereq_('./_defined');
+// true  -> String#at
+// false -> String#codePointAt
+module.exports = function (TO_STRING) {
+  return function (that, pos) {
+    var s = String(defined(that));
+    var i = toInteger(pos);
+    var l = s.length;
+    var a, b;
+    if (i < 0 || i >= l) return TO_STRING ? '' : undefined;
+    a = s.charCodeAt(i);
+    return a < 0xd800 || a > 0xdbff || i + 1 === l || (b = s.charCodeAt(i + 1)) < 0xdc00 || b > 0xdfff
+      ? TO_STRING ? s.charAt(i) : a
+      : TO_STRING ? s.slice(i, i + 2) : (a - 0xd800 << 10) + (b - 0xdc00) + 0x10000;
+  };
+};
+
+},{"./_defined":39,"./_to-integer":94}],90:[function(_dereq_,module,exports){
+// helper for String#{startsWith, endsWith, includes}
+var isRegExp = _dereq_('./_is-regexp');
+var defined = _dereq_('./_defined');
+
+module.exports = function (that, searchString, NAME) {
+  if (isRegExp(searchString)) throw TypeError('String#' + NAME + " doesn't accept regex!");
+  return String(defined(that));
+};
+
+},{"./_defined":39,"./_is-regexp":60}],91:[function(_dereq_,module,exports){
+var $export = _dereq_('./_export');
+var defined = _dereq_('./_defined');
+var fails = _dereq_('./_fails');
+var spaces = _dereq_('./_string-ws');
+var space = '[' + spaces + ']';
+var non = '\u200b\u0085';
+var ltrim = RegExp('^' + space + space + '*');
+var rtrim = RegExp(space + space + '*$');
+
+var exporter = function (KEY, exec, ALIAS) {
+  var exp = {};
+  var FORCE = fails(function () {
+    return !!spaces[KEY]() || non[KEY]() != non;
+  });
+  var fn = exp[KEY] = FORCE ? exec(trim) : spaces[KEY];
+  if (ALIAS) exp[ALIAS] = fn;
+  $export($export.P + $export.F * FORCE, 'String', exp);
+};
+
+// 1 -> String#trimLeft
+// 2 -> String#trimRight
+// 3 -> String#trim
+var trim = exporter.trim = function (string, TYPE) {
+  string = String(defined(string));
+  if (TYPE & 1) string = string.replace(ltrim, '');
+  if (TYPE & 2) string = string.replace(rtrim, '');
+  return string;
+};
+
+module.exports = exporter;
+
+},{"./_defined":39,"./_export":44,"./_fails":46,"./_string-ws":92}],92:[function(_dereq_,module,exports){
+module.exports = '\x09\x0A\x0B\x0C\x0D\x20\xA0\u1680\u180E\u2000\u2001\u2002\u2003' +
+  '\u2004\u2005\u2006\u2007\u2008\u2009\u200A\u202F\u205F\u3000\u2028\u2029\uFEFF';
+
+},{}],93:[function(_dereq_,module,exports){
+var toInteger = _dereq_('./_to-integer');
+var max = Math.max;
+var min = Math.min;
+module.exports = function (index, length) {
+  index = toInteger(index);
+  return index < 0 ? max(index + length, 0) : min(index, length);
+};
+
+},{"./_to-integer":94}],94:[function(_dereq_,module,exports){
+// 7.1.4 ToInteger
+var ceil = Math.ceil;
+var floor = Math.floor;
+module.exports = function (it) {
+  return isNaN(it = +it) ? 0 : (it > 0 ? floor : ceil)(it);
+};
+
+},{}],95:[function(_dereq_,module,exports){
+// to indexed object, toObject with fallback for non-array-like ES3 strings
+var IObject = _dereq_('./_iobject');
+var defined = _dereq_('./_defined');
+module.exports = function (it) {
+  return IObject(defined(it));
+};
+
+},{"./_defined":39,"./_iobject":56}],96:[function(_dereq_,module,exports){
+// 7.1.15 ToLength
+var toInteger = _dereq_('./_to-integer');
+var min = Math.min;
+module.exports = function (it) {
+  return it > 0 ? min(toInteger(it), 0x1fffffffffffff) : 0; // pow(2, 53) - 1 == 9007199254740991
+};
+
+},{"./_to-integer":94}],97:[function(_dereq_,module,exports){
+// 7.1.13 ToObject(argument)
+var defined = _dereq_('./_defined');
+module.exports = function (it) {
+  return Object(defined(it));
+};
+
+},{"./_defined":39}],98:[function(_dereq_,module,exports){
+// 7.1.1 ToPrimitive(input [, PreferredType])
+var isObject = _dereq_('./_is-object');
+// instead of the ES6 spec version, we didn't implement @@toPrimitive case
+// and the second argument - flag - preferred type is a string
+module.exports = function (it, S) {
+  if (!isObject(it)) return it;
+  var fn, val;
+  if (S && typeof (fn = it.toString) == 'function' && !isObject(val = fn.call(it))) return val;
+  if (typeof (fn = it.valueOf) == 'function' && !isObject(val = fn.call(it))) return val;
+  if (!S && typeof (fn = it.toString) == 'function' && !isObject(val = fn.call(it))) return val;
+  throw TypeError("Can't convert object to primitive value");
+};
+
+},{"./_is-object":59}],99:[function(_dereq_,module,exports){
+var id = 0;
+var px = Math.random();
+module.exports = function (key) {
+  return 'Symbol('.concat(key === undefined ? '' : key, ')_', (++id + px).toString(36));
+};
+
+},{}],100:[function(_dereq_,module,exports){
+var global = _dereq_('./_global');
+var core = _dereq_('./_core');
+var LIBRARY = _dereq_('./_library');
+var wksExt = _dereq_('./_wks-ext');
+var defineProperty = _dereq_('./_object-dp').f;
+module.exports = function (name) {
+  var $Symbol = core.Symbol || (core.Symbol = LIBRARY ? {} : global.Symbol || {});
+  if (name.charAt(0) != '_' && !(name in $Symbol)) defineProperty($Symbol, name, { value: wksExt.f(name) });
+};
+
+},{"./_core":36,"./_global":49,"./_library":67,"./_object-dp":71,"./_wks-ext":101}],101:[function(_dereq_,module,exports){
+exports.f = _dereq_('./_wks');
+
+},{"./_wks":102}],102:[function(_dereq_,module,exports){
+var store = _dereq_('./_shared')('wks');
+var uid = _dereq_('./_uid');
+var Symbol = _dereq_('./_global').Symbol;
+var USE_SYMBOL = typeof Symbol == 'function';
+
+var $exports = module.exports = function (name) {
+  return store[name] || (store[name] =
+    USE_SYMBOL && Symbol[name] || (USE_SYMBOL ? Symbol : uid)('Symbol.' + name));
+};
+
+$exports.store = store;
+
+},{"./_global":49,"./_shared":88,"./_uid":99}],103:[function(_dereq_,module,exports){
+var classof = _dereq_('./_classof');
+var ITERATOR = _dereq_('./_wks')('iterator');
+var Iterators = _dereq_('./_iterators');
+module.exports = _dereq_('./_core').getIteratorMethod = function (it) {
+  if (it != undefined) return it[ITERATOR]
+    || it['@@iterator']
+    || Iterators[classof(it)];
+};
+
+},{"./_classof":34,"./_core":36,"./_iterators":66,"./_wks":102}],104:[function(_dereq_,module,exports){
+'use strict';
+// 22.1.3.8 Array.prototype.find(predicate, thisArg = undefined)
+var $export = _dereq_('./_export');
+var $find = _dereq_('./_array-methods')(5);
+var KEY = 'find';
+var forced = true;
+// Shouldn't skip holes
+if (KEY in []) Array(1)[KEY](function () { forced = false; });
+$export($export.P + $export.F * forced, 'Array', {
+  find: function find(callbackfn /* , that = undefined */) {
+    return $find(this, callbackfn, arguments.length > 1 ? arguments[1] : undefined);
+  }
+});
+_dereq_('./_add-to-unscopables')(KEY);
+
+},{"./_add-to-unscopables":27,"./_array-methods":30,"./_export":44}],105:[function(_dereq_,module,exports){
+'use strict';
+var ctx = _dereq_('./_ctx');
+var $export = _dereq_('./_export');
+var toObject = _dereq_('./_to-object');
+var call = _dereq_('./_iter-call');
+var isArrayIter = _dereq_('./_is-array-iter');
+var toLength = _dereq_('./_to-length');
+var createProperty = _dereq_('./_create-property');
+var getIterFn = _dereq_('./core.get-iterator-method');
+
+$export($export.S + $export.F * !_dereq_('./_iter-detect')(function (iter) { Array.from(iter); }), 'Array', {
+  // 22.1.2.1 Array.from(arrayLike, mapfn = undefined, thisArg = undefined)
+  from: function from(arrayLike /* , mapfn = undefined, thisArg = undefined */) {
+    var O = toObject(arrayLike);
+    var C = typeof this == 'function' ? this : Array;
+    var aLen = arguments.length;
+    var mapfn = aLen > 1 ? arguments[1] : undefined;
+    var mapping = mapfn !== undefined;
+    var index = 0;
+    var iterFn = getIterFn(O);
+    var length, result, step, iterator;
+    if (mapping) mapfn = ctx(mapfn, aLen > 2 ? arguments[2] : undefined, 2);
+    // if object isn't iterable or it's array with default iterator - use simple case
+    if (iterFn != undefined && !(C == Array && isArrayIter(iterFn))) {
+      for (iterator = iterFn.call(O), result = new C(); !(step = iterator.next()).done; index++) {
+        createProperty(result, index, mapping ? call(iterator, mapfn, [step.value, index], true) : step.value);
+      }
+    } else {
+      length = toLength(O.length);
+      for (result = new C(length); length > index; index++) {
+        createProperty(result, index, mapping ? mapfn(O[index], index) : O[index]);
+      }
+    }
+    result.length = index;
+    return result;
+  }
+});
+
+},{"./_create-property":37,"./_ctx":38,"./_export":44,"./_is-array-iter":57,"./_iter-call":61,"./_iter-detect":64,"./_to-length":96,"./_to-object":97,"./core.get-iterator-method":103}],106:[function(_dereq_,module,exports){
+'use strict';
+var addToUnscopables = _dereq_('./_add-to-unscopables');
+var step = _dereq_('./_iter-step');
+var Iterators = _dereq_('./_iterators');
+var toIObject = _dereq_('./_to-iobject');
+
+// 22.1.3.4 Array.prototype.entries()
+// 22.1.3.13 Array.prototype.keys()
+// 22.1.3.29 Array.prototype.values()
+// 22.1.3.30 Array.prototype[@@iterator]()
+module.exports = _dereq_('./_iter-define')(Array, 'Array', function (iterated, kind) {
+  this._t = toIObject(iterated); // target
+  this._i = 0;                   // next index
+  this._k = kind;                // kind
+// 22.1.5.2.1 %ArrayIteratorPrototype%.next()
+}, function () {
+  var O = this._t;
+  var kind = this._k;
+  var index = this._i++;
+  if (!O || index >= O.length) {
+    this._t = undefined;
+    return step(1);
+  }
+  if (kind == 'keys') return step(0, index);
+  if (kind == 'values') return step(0, O[index]);
+  return step(0, [index, O[index]]);
+}, 'values');
+
+// argumentsList[@@iterator] is %ArrayProto_values% (9.4.4.6, 9.4.4.7)
+Iterators.Arguments = Iterators.Array;
+
+addToUnscopables('keys');
+addToUnscopables('values');
+addToUnscopables('entries');
+
+},{"./_add-to-unscopables":27,"./_iter-define":63,"./_iter-step":65,"./_iterators":66,"./_to-iobject":95}],107:[function(_dereq_,module,exports){
+var dP = _dereq_('./_object-dp').f;
+var FProto = Function.prototype;
+var nameRE = /^\s*function ([^ (]*)/;
+var NAME = 'name';
+
+// 19.2.4.2 name
+NAME in FProto || _dereq_('./_descriptors') && dP(FProto, NAME, {
+  configurable: true,
+  get: function () {
+    try {
+      return ('' + this).match(nameRE)[1];
+    } catch (e) {
+      return '';
+    }
+  }
+});
+
+},{"./_descriptors":40,"./_object-dp":71}],108:[function(_dereq_,module,exports){
+'use strict';
+var global = _dereq_('./_global');
+var has = _dereq_('./_has');
+var cof = _dereq_('./_cof');
+var inheritIfRequired = _dereq_('./_inherit-if-required');
+var toPrimitive = _dereq_('./_to-primitive');
+var fails = _dereq_('./_fails');
+var gOPN = _dereq_('./_object-gopn').f;
+var gOPD = _dereq_('./_object-gopd').f;
+var dP = _dereq_('./_object-dp').f;
+var $trim = _dereq_('./_string-trim').trim;
+var NUMBER = 'Number';
+var $Number = global[NUMBER];
+var Base = $Number;
+var proto = $Number.prototype;
+// Opera ~12 has broken Object#toString
+var BROKEN_COF = cof(_dereq_('./_object-create')(proto)) == NUMBER;
+var TRIM = 'trim' in String.prototype;
+
+// 7.1.3 ToNumber(argument)
+var toNumber = function (argument) {
+  var it = toPrimitive(argument, false);
+  if (typeof it == 'string' && it.length > 2) {
+    it = TRIM ? it.trim() : $trim(it, 3);
+    var first = it.charCodeAt(0);
+    var third, radix, maxCode;
+    if (first === 43 || first === 45) {
+      third = it.charCodeAt(2);
+      if (third === 88 || third === 120) return NaN; // Number('+0x1') should be NaN, old V8 fix
+    } else if (first === 48) {
+      switch (it.charCodeAt(1)) {
+        case 66: case 98: radix = 2; maxCode = 49; break; // fast equal /^0b[01]+$/i
+        case 79: case 111: radix = 8; maxCode = 55; break; // fast equal /^0o[0-7]+$/i
+        default: return +it;
+      }
+      for (var digits = it.slice(2), i = 0, l = digits.length, code; i < l; i++) {
+        code = digits.charCodeAt(i);
+        // parseInt parses a string to a first unavailable symbol
+        // but ToNumber should return NaN if a string contains unavailable symbols
+        if (code < 48 || code > maxCode) return NaN;
+      } return parseInt(digits, radix);
+    }
+  } return +it;
+};
+
+if (!$Number(' 0o1') || !$Number('0b1') || $Number('+0x1')) {
+  $Number = function Number(value) {
+    var it = arguments.length < 1 ? 0 : value;
+    var that = this;
+    return that instanceof $Number
+      // check on 1..constructor(foo) case
+      && (BROKEN_COF ? fails(function () { proto.valueOf.call(that); }) : cof(that) != NUMBER)
+        ? inheritIfRequired(new Base(toNumber(it)), that, $Number) : toNumber(it);
+  };
+  for (var keys = _dereq_('./_descriptors') ? gOPN(Base) : (
+    // ES3:
+    'MAX_VALUE,MIN_VALUE,NaN,NEGATIVE_INFINITY,POSITIVE_INFINITY,' +
+    // ES6 (in case, if modules with ES6 Number statics required before):
+    'EPSILON,isFinite,isInteger,isNaN,isSafeInteger,MAX_SAFE_INTEGER,' +
+    'MIN_SAFE_INTEGER,parseFloat,parseInt,isInteger'
+  ).split(','), j = 0, key; keys.length > j; j++) {
+    if (has(Base, key = keys[j]) && !has($Number, key)) {
+      dP($Number, key, gOPD(Base, key));
+    }
+  }
+  $Number.prototype = proto;
+  proto.constructor = $Number;
+  _dereq_('./_redefine')(global, NUMBER, $Number);
+}
+
+},{"./_cof":35,"./_descriptors":40,"./_fails":46,"./_global":49,"./_has":50,"./_inherit-if-required":54,"./_object-create":70,"./_object-dp":71,"./_object-gopd":73,"./_object-gopn":75,"./_redefine":83,"./_string-trim":91,"./_to-primitive":98}],109:[function(_dereq_,module,exports){
+// 19.1.3.1 Object.assign(target, source)
+var $export = _dereq_('./_export');
+
+$export($export.S + $export.F, 'Object', { assign: _dereq_('./_object-assign') });
+
+},{"./_export":44,"./_object-assign":69}],110:[function(_dereq_,module,exports){
+// 19.1.2.14 Object.keys(O)
+var toObject = _dereq_('./_to-object');
+var $keys = _dereq_('./_object-keys');
+
+_dereq_('./_object-sap')('keys', function () {
+  return function keys(it) {
+    return $keys(toObject(it));
+  };
+});
+
+},{"./_object-keys":79,"./_object-sap":81,"./_to-object":97}],111:[function(_dereq_,module,exports){
+// 26.1.2 Reflect.construct(target, argumentsList [, newTarget])
+var $export = _dereq_('./_export');
+var create = _dereq_('./_object-create');
+var aFunction = _dereq_('./_a-function');
+var anObject = _dereq_('./_an-object');
+var isObject = _dereq_('./_is-object');
+var fails = _dereq_('./_fails');
+var bind = _dereq_('./_bind');
+var rConstruct = (_dereq_('./_global').Reflect || {}).construct;
+
+// MS Edge supports only 2 arguments and argumentsList argument is optional
+// FF Nightly sets third argument as `new.target`, but does not create `this` from it
+var NEW_TARGET_BUG = fails(function () {
+  function F() { /* empty */ }
+  return !(rConstruct(function () { /* empty */ }, [], F) instanceof F);
+});
+var ARGS_BUG = !fails(function () {
+  rConstruct(function () { /* empty */ });
+});
+
+$export($export.S + $export.F * (NEW_TARGET_BUG || ARGS_BUG), 'Reflect', {
+  construct: function construct(Target, args /* , newTarget */) {
+    aFunction(Target);
+    anObject(args);
+    var newTarget = arguments.length < 3 ? Target : aFunction(arguments[2]);
+    if (ARGS_BUG && !NEW_TARGET_BUG) return rConstruct(Target, args, newTarget);
+    if (Target == newTarget) {
+      // w/o altered newTarget, optimization for 0-4 arguments
+      switch (args.length) {
+        case 0: return new Target();
+        case 1: return new Target(args[0]);
+        case 2: return new Target(args[0], args[1]);
+        case 3: return new Target(args[0], args[1], args[2]);
+        case 4: return new Target(args[0], args[1], args[2], args[3]);
+      }
+      // w/o altered newTarget, lot of arguments case
+      var $args = [null];
+      $args.push.apply($args, args);
+      return new (bind.apply(Target, $args))();
+    }
+    // with altered newTarget, not support built-in constructors
+    var proto = newTarget.prototype;
+    var instance = create(isObject(proto) ? proto : Object.prototype);
+    var result = Function.apply.call(Target, instance, args);
+    return isObject(result) ? result : instance;
+  }
+});
+
+},{"./_a-function":26,"./_an-object":28,"./_bind":33,"./_export":44,"./_fails":46,"./_global":49,"./_is-object":59,"./_object-create":70}],112:[function(_dereq_,module,exports){
+// 26.1.6 Reflect.get(target, propertyKey [, receiver])
+var gOPD = _dereq_('./_object-gopd');
+var getPrototypeOf = _dereq_('./_object-gpo');
+var has = _dereq_('./_has');
+var $export = _dereq_('./_export');
+var isObject = _dereq_('./_is-object');
+var anObject = _dereq_('./_an-object');
+
+function get(target, propertyKey /* , receiver */) {
+  var receiver = arguments.length < 3 ? target : arguments[2];
+  var desc, proto;
+  if (anObject(target) === receiver) return target[propertyKey];
+  if (desc = gOPD.f(target, propertyKey)) return has(desc, 'value')
+    ? desc.value
+    : desc.get !== undefined
+      ? desc.get.call(receiver)
+      : undefined;
+  if (isObject(proto = getPrototypeOf(target))) return get(proto, propertyKey, receiver);
+}
+
+$export($export.S, 'Reflect', { get: get });
+
+},{"./_an-object":28,"./_export":44,"./_has":50,"./_is-object":59,"./_object-gopd":73,"./_object-gpo":77}],113:[function(_dereq_,module,exports){
+var global = _dereq_('./_global');
+var inheritIfRequired = _dereq_('./_inherit-if-required');
+var dP = _dereq_('./_object-dp').f;
+var gOPN = _dereq_('./_object-gopn').f;
+var isRegExp = _dereq_('./_is-regexp');
+var $flags = _dereq_('./_flags');
+var $RegExp = global.RegExp;
+var Base = $RegExp;
+var proto = $RegExp.prototype;
+var re1 = /a/g;
+var re2 = /a/g;
+// "new" creates a new object, old webkit buggy here
+var CORRECT_NEW = new $RegExp(re1) !== re1;
+
+if (_dereq_('./_descriptors') && (!CORRECT_NEW || _dereq_('./_fails')(function () {
+  re2[_dereq_('./_wks')('match')] = false;
+  // RegExp constructor can alter flags and IsRegExp works correct with @@match
+  return $RegExp(re1) != re1 || $RegExp(re2) == re2 || $RegExp(re1, 'i') != '/a/i';
+}))) {
+  $RegExp = function RegExp(p, f) {
+    var tiRE = this instanceof $RegExp;
+    var piRE = isRegExp(p);
+    var fiU = f === undefined;
+    return !tiRE && piRE && p.constructor === $RegExp && fiU ? p
+      : inheritIfRequired(CORRECT_NEW
+        ? new Base(piRE && !fiU ? p.source : p, f)
+        : Base((piRE = p instanceof $RegExp) ? p.source : p, piRE && fiU ? $flags.call(p) : f)
+      , tiRE ? this : proto, $RegExp);
+  };
+  var proxy = function (key) {
+    key in $RegExp || dP($RegExp, key, {
+      configurable: true,
+      get: function () { return Base[key]; },
+      set: function (it) { Base[key] = it; }
+    });
+  };
+  for (var keys = gOPN(Base), i = 0; keys.length > i;) proxy(keys[i++]);
+  proto.constructor = $RegExp;
+  $RegExp.prototype = proto;
+  _dereq_('./_redefine')(global, 'RegExp', $RegExp);
+}
+
+_dereq_('./_set-species')('RegExp');
+
+},{"./_descriptors":40,"./_fails":46,"./_flags":48,"./_global":49,"./_inherit-if-required":54,"./_is-regexp":60,"./_object-dp":71,"./_object-gopn":75,"./_redefine":83,"./_set-species":85,"./_wks":102}],114:[function(_dereq_,module,exports){
+// 21.2.5.3 get RegExp.prototype.flags()
+if (_dereq_('./_descriptors') && /./g.flags != 'g') _dereq_('./_object-dp').f(RegExp.prototype, 'flags', {
+  configurable: true,
+  get: _dereq_('./_flags')
+});
+
+},{"./_descriptors":40,"./_flags":48,"./_object-dp":71}],115:[function(_dereq_,module,exports){
+// @@match logic
+_dereq_('./_fix-re-wks')('match', 1, function (defined, MATCH, $match) {
+  // 21.1.3.11 String.prototype.match(regexp)
+  return [function match(regexp) {
+    'use strict';
+    var O = defined(this);
+    var fn = regexp == undefined ? undefined : regexp[MATCH];
+    return fn !== undefined ? fn.call(regexp, O) : new RegExp(regexp)[MATCH](String(O));
+  }, $match];
+});
+
+},{"./_fix-re-wks":47}],116:[function(_dereq_,module,exports){
+// @@replace logic
+_dereq_('./_fix-re-wks')('replace', 2, function (defined, REPLACE, $replace) {
+  // 21.1.3.14 String.prototype.replace(searchValue, replaceValue)
+  return [function replace(searchValue, replaceValue) {
+    'use strict';
+    var O = defined(this);
+    var fn = searchValue == undefined ? undefined : searchValue[REPLACE];
+    return fn !== undefined
+      ? fn.call(searchValue, O, replaceValue)
+      : $replace.call(String(O), searchValue, replaceValue);
+  }, $replace];
+});
+
+},{"./_fix-re-wks":47}],117:[function(_dereq_,module,exports){
+// @@search logic
+_dereq_('./_fix-re-wks')('search', 1, function (defined, SEARCH, $search) {
+  // 21.1.3.15 String.prototype.search(regexp)
+  return [function search(regexp) {
+    'use strict';
+    var O = defined(this);
+    var fn = regexp == undefined ? undefined : regexp[SEARCH];
+    return fn !== undefined ? fn.call(regexp, O) : new RegExp(regexp)[SEARCH](String(O));
+  }, $search];
+});
+
+},{"./_fix-re-wks":47}],118:[function(_dereq_,module,exports){
+// @@split logic
+_dereq_('./_fix-re-wks')('split', 2, function (defined, SPLIT, $split) {
+  'use strict';
+  var isRegExp = _dereq_('./_is-regexp');
+  var _split = $split;
+  var $push = [].push;
+  var $SPLIT = 'split';
+  var LENGTH = 'length';
+  var LAST_INDEX = 'lastIndex';
+  if (
+    'abbc'[$SPLIT](/(b)*/)[1] == 'c' ||
+    'test'[$SPLIT](/(?:)/, -1)[LENGTH] != 4 ||
+    'ab'[$SPLIT](/(?:ab)*/)[LENGTH] != 2 ||
+    '.'[$SPLIT](/(.?)(.?)/)[LENGTH] != 4 ||
+    '.'[$SPLIT](/()()/)[LENGTH] > 1 ||
+    ''[$SPLIT](/.?/)[LENGTH]
+  ) {
+    var NPCG = /()??/.exec('')[1] === undefined; // nonparticipating capturing group
+    // based on es5-shim implementation, need to rework it
+    $split = function (separator, limit) {
+      var string = String(this);
+      if (separator === undefined && limit === 0) return [];
+      // If `separator` is not a regex, use native split
+      if (!isRegExp(separator)) return _split.call(string, separator, limit);
+      var output = [];
+      var flags = (separator.ignoreCase ? 'i' : '') +
+                  (separator.multiline ? 'm' : '') +
+                  (separator.unicode ? 'u' : '') +
+                  (separator.sticky ? 'y' : '');
+      var lastLastIndex = 0;
+      var splitLimit = limit === undefined ? 4294967295 : limit >>> 0;
+      // Make `global` and avoid `lastIndex` issues by working with a copy
+      var separatorCopy = new RegExp(separator.source, flags + 'g');
+      var separator2, match, lastIndex, lastLength, i;
+      // Doesn't need flags gy, but they don't hurt
+      if (!NPCG) separator2 = new RegExp('^' + separatorCopy.source + '$(?!\\s)', flags);
+      while (match = separatorCopy.exec(string)) {
+        // `separatorCopy.lastIndex` is not reliable cross-browser
+        lastIndex = match.index + match[0][LENGTH];
+        if (lastIndex > lastLastIndex) {
+          output.push(string.slice(lastLastIndex, match.index));
+          // Fix browsers whose `exec` methods don't consistently return `undefined` for NPCG
+          // eslint-disable-next-line no-loop-func
+          if (!NPCG && match[LENGTH] > 1) match[0].replace(separator2, function () {
+            for (i = 1; i < arguments[LENGTH] - 2; i++) if (arguments[i] === undefined) match[i] = undefined;
+          });
+          if (match[LENGTH] > 1 && match.index < string[LENGTH]) $push.apply(output, match.slice(1));
+          lastLength = match[0][LENGTH];
+          lastLastIndex = lastIndex;
+          if (output[LENGTH] >= splitLimit) break;
+        }
+        if (separatorCopy[LAST_INDEX] === match.index) separatorCopy[LAST_INDEX]++; // Avoid an infinite loop
+      }
+      if (lastLastIndex === string[LENGTH]) {
+        if (lastLength || !separatorCopy.test('')) output.push('');
+      } else output.push(string.slice(lastLastIndex));
+      return output[LENGTH] > splitLimit ? output.slice(0, splitLimit) : output;
+    };
+  // Chakra, V8
+  } else if ('0'[$SPLIT](undefined, 0)[LENGTH]) {
+    $split = function (separator, limit) {
+      return separator === undefined && limit === 0 ? [] : _split.call(this, separator, limit);
+    };
+  }
+  // 21.1.3.17 String.prototype.split(separator, limit)
+  return [function split(separator, limit) {
+    var O = defined(this);
+    var fn = separator == undefined ? undefined : separator[SPLIT];
+    return fn !== undefined ? fn.call(separator, O, limit) : $split.call(String(O), separator, limit);
+  }, $split];
+});
+
+},{"./_fix-re-wks":47,"./_is-regexp":60}],119:[function(_dereq_,module,exports){
+'use strict';
+_dereq_('./es6.regexp.flags');
+var anObject = _dereq_('./_an-object');
+var $flags = _dereq_('./_flags');
+var DESCRIPTORS = _dereq_('./_descriptors');
+var TO_STRING = 'toString';
+var $toString = /./[TO_STRING];
+
+var define = function (fn) {
+  _dereq_('./_redefine')(RegExp.prototype, TO_STRING, fn, true);
+};
+
+// 21.2.5.14 RegExp.prototype.toString()
+if (_dereq_('./_fails')(function () { return $toString.call({ source: 'a', flags: 'b' }) != '/a/b'; })) {
+  define(function toString() {
+    var R = anObject(this);
+    return '/'.concat(R.source, '/',
+      'flags' in R ? R.flags : !DESCRIPTORS && R instanceof RegExp ? $flags.call(R) : undefined);
+  });
+// FF44- RegExp#toString has a wrong name
+} else if ($toString.name != TO_STRING) {
+  define(function toString() {
+    return $toString.call(this);
+  });
+}
+
+},{"./_an-object":28,"./_descriptors":40,"./_fails":46,"./_flags":48,"./_redefine":83,"./es6.regexp.flags":114}],120:[function(_dereq_,module,exports){
+// 21.1.3.7 String.prototype.includes(searchString, position = 0)
+'use strict';
+var $export = _dereq_('./_export');
+var context = _dereq_('./_string-context');
+var INCLUDES = 'includes';
+
+$export($export.P + $export.F * _dereq_('./_fails-is-regexp')(INCLUDES), 'String', {
+  includes: function includes(searchString /* , position = 0 */) {
+    return !!~context(this, searchString, INCLUDES)
+      .indexOf(searchString, arguments.length > 1 ? arguments[1] : undefined);
+  }
+});
+
+},{"./_export":44,"./_fails-is-regexp":45,"./_string-context":90}],121:[function(_dereq_,module,exports){
+'use strict';
+var $at = _dereq_('./_string-at')(true);
+
+// 21.1.3.27 String.prototype[@@iterator]()
+_dereq_('./_iter-define')(String, 'String', function (iterated) {
+  this._t = String(iterated); // target
+  this._i = 0;                // next index
+// 21.1.5.2.1 %StringIteratorPrototype%.next()
+}, function () {
+  var O = this._t;
+  var index = this._i;
+  var point;
+  if (index >= O.length) return { value: undefined, done: true };
+  point = $at(O, index);
+  this._i += point.length;
+  return { value: point, done: false };
+});
+
+},{"./_iter-define":63,"./_string-at":89}],122:[function(_dereq_,module,exports){
+'use strict';
+// ECMAScript 6 symbols shim
+var global = _dereq_('./_global');
+var has = _dereq_('./_has');
+var DESCRIPTORS = _dereq_('./_descriptors');
+var $export = _dereq_('./_export');
+var redefine = _dereq_('./_redefine');
+var META = _dereq_('./_meta').KEY;
+var $fails = _dereq_('./_fails');
+var shared = _dereq_('./_shared');
+var setToStringTag = _dereq_('./_set-to-string-tag');
+var uid = _dereq_('./_uid');
+var wks = _dereq_('./_wks');
+var wksExt = _dereq_('./_wks-ext');
+var wksDefine = _dereq_('./_wks-define');
+var enumKeys = _dereq_('./_enum-keys');
+var isArray = _dereq_('./_is-array');
+var anObject = _dereq_('./_an-object');
+var isObject = _dereq_('./_is-object');
+var toIObject = _dereq_('./_to-iobject');
+var toPrimitive = _dereq_('./_to-primitive');
+var createDesc = _dereq_('./_property-desc');
+var _create = _dereq_('./_object-create');
+var gOPNExt = _dereq_('./_object-gopn-ext');
+var $GOPD = _dereq_('./_object-gopd');
+var $DP = _dereq_('./_object-dp');
+var $keys = _dereq_('./_object-keys');
+var gOPD = $GOPD.f;
+var dP = $DP.f;
+var gOPN = gOPNExt.f;
+var $Symbol = global.Symbol;
+var $JSON = global.JSON;
+var _stringify = $JSON && $JSON.stringify;
+var PROTOTYPE = 'prototype';
+var HIDDEN = wks('_hidden');
+var TO_PRIMITIVE = wks('toPrimitive');
+var isEnum = {}.propertyIsEnumerable;
+var SymbolRegistry = shared('symbol-registry');
+var AllSymbols = shared('symbols');
+var OPSymbols = shared('op-symbols');
+var ObjectProto = Object[PROTOTYPE];
+var USE_NATIVE = typeof $Symbol == 'function';
+var QObject = global.QObject;
+// Don't use setters in Qt Script, https://github.com/zloirock/core-js/issues/173
+var setter = !QObject || !QObject[PROTOTYPE] || !QObject[PROTOTYPE].findChild;
+
+// fallback for old Android, https://code.google.com/p/v8/issues/detail?id=687
+var setSymbolDesc = DESCRIPTORS && $fails(function () {
+  return _create(dP({}, 'a', {
+    get: function () { return dP(this, 'a', { value: 7 }).a; }
+  })).a != 7;
+}) ? function (it, key, D) {
+  var protoDesc = gOPD(ObjectProto, key);
+  if (protoDesc) delete ObjectProto[key];
+  dP(it, key, D);
+  if (protoDesc && it !== ObjectProto) dP(ObjectProto, key, protoDesc);
+} : dP;
+
+var wrap = function (tag) {
+  var sym = AllSymbols[tag] = _create($Symbol[PROTOTYPE]);
+  sym._k = tag;
+  return sym;
+};
+
+var isSymbol = USE_NATIVE && typeof $Symbol.iterator == 'symbol' ? function (it) {
+  return typeof it == 'symbol';
+} : function (it) {
+  return it instanceof $Symbol;
+};
+
+var $defineProperty = function defineProperty(it, key, D) {
+  if (it === ObjectProto) $defineProperty(OPSymbols, key, D);
+  anObject(it);
+  key = toPrimitive(key, true);
+  anObject(D);
+  if (has(AllSymbols, key)) {
+    if (!D.enumerable) {
+      if (!has(it, HIDDEN)) dP(it, HIDDEN, createDesc(1, {}));
+      it[HIDDEN][key] = true;
+    } else {
+      if (has(it, HIDDEN) && it[HIDDEN][key]) it[HIDDEN][key] = false;
+      D = _create(D, { enumerable: createDesc(0, false) });
+    } return setSymbolDesc(it, key, D);
+  } return dP(it, key, D);
+};
+var $defineProperties = function defineProperties(it, P) {
+  anObject(it);
+  var keys = enumKeys(P = toIObject(P));
+  var i = 0;
+  var l = keys.length;
+  var key;
+  while (l > i) $defineProperty(it, key = keys[i++], P[key]);
+  return it;
+};
+var $create = function create(it, P) {
+  return P === undefined ? _create(it) : $defineProperties(_create(it), P);
+};
+var $propertyIsEnumerable = function propertyIsEnumerable(key) {
+  var E = isEnum.call(this, key = toPrimitive(key, true));
+  if (this === ObjectProto && has(AllSymbols, key) && !has(OPSymbols, key)) return false;
+  return E || !has(this, key) || !has(AllSymbols, key) || has(this, HIDDEN) && this[HIDDEN][key] ? E : true;
+};
+var $getOwnPropertyDescriptor = function getOwnPropertyDescriptor(it, key) {
+  it = toIObject(it);
+  key = toPrimitive(key, true);
+  if (it === ObjectProto && has(AllSymbols, key) && !has(OPSymbols, key)) return;
+  var D = gOPD(it, key);
+  if (D && has(AllSymbols, key) && !(has(it, HIDDEN) && it[HIDDEN][key])) D.enumerable = true;
+  return D;
+};
+var $getOwnPropertyNames = function getOwnPropertyNames(it) {
+  var names = gOPN(toIObject(it));
+  var result = [];
+  var i = 0;
+  var key;
+  while (names.length > i) {
+    if (!has(AllSymbols, key = names[i++]) && key != HIDDEN && key != META) result.push(key);
+  } return result;
+};
+var $getOwnPropertySymbols = function getOwnPropertySymbols(it) {
+  var IS_OP = it === ObjectProto;
+  var names = gOPN(IS_OP ? OPSymbols : toIObject(it));
+  var result = [];
+  var i = 0;
+  var key;
+  while (names.length > i) {
+    if (has(AllSymbols, key = names[i++]) && (IS_OP ? has(ObjectProto, key) : true)) result.push(AllSymbols[key]);
+  } return result;
+};
+
+// 19.4.1.1 Symbol([description])
+if (!USE_NATIVE) {
+  $Symbol = function Symbol() {
+    if (this instanceof $Symbol) throw TypeError('Symbol is not a constructor!');
+    var tag = uid(arguments.length > 0 ? arguments[0] : undefined);
+    var $set = function (value) {
+      if (this === ObjectProto) $set.call(OPSymbols, value);
+      if (has(this, HIDDEN) && has(this[HIDDEN], tag)) this[HIDDEN][tag] = false;
+      setSymbolDesc(this, tag, createDesc(1, value));
+    };
+    if (DESCRIPTORS && setter) setSymbolDesc(ObjectProto, tag, { configurable: true, set: $set });
+    return wrap(tag);
+  };
+  redefine($Symbol[PROTOTYPE], 'toString', function toString() {
+    return this._k;
+  });
+
+  $GOPD.f = $getOwnPropertyDescriptor;
+  $DP.f = $defineProperty;
+  _dereq_('./_object-gopn').f = gOPNExt.f = $getOwnPropertyNames;
+  _dereq_('./_object-pie').f = $propertyIsEnumerable;
+  _dereq_('./_object-gops').f = $getOwnPropertySymbols;
+
+  if (DESCRIPTORS && !_dereq_('./_library')) {
+    redefine(ObjectProto, 'propertyIsEnumerable', $propertyIsEnumerable, true);
+  }
+
+  wksExt.f = function (name) {
+    return wrap(wks(name));
+  };
+}
+
+$export($export.G + $export.W + $export.F * !USE_NATIVE, { Symbol: $Symbol });
+
+for (var es6Symbols = (
+  // 19.4.2.2, 19.4.2.3, 19.4.2.4, 19.4.2.6, 19.4.2.8, 19.4.2.9, 19.4.2.10, 19.4.2.11, 19.4.2.12, 19.4.2.13, 19.4.2.14
+  'hasInstance,isConcatSpreadable,iterator,match,replace,search,species,split,toPrimitive,toStringTag,unscopables'
+).split(','), j = 0; es6Symbols.length > j;)wks(es6Symbols[j++]);
+
+for (var wellKnownSymbols = $keys(wks.store), k = 0; wellKnownSymbols.length > k;) wksDefine(wellKnownSymbols[k++]);
+
+$export($export.S + $export.F * !USE_NATIVE, 'Symbol', {
+  // 19.4.2.1 Symbol.for(key)
+  'for': function (key) {
+    return has(SymbolRegistry, key += '')
+      ? SymbolRegistry[key]
+      : SymbolRegistry[key] = $Symbol(key);
+  },
+  // 19.4.2.5 Symbol.keyFor(sym)
+  keyFor: function keyFor(sym) {
+    if (!isSymbol(sym)) throw TypeError(sym + ' is not a symbol!');
+    for (var key in SymbolRegistry) if (SymbolRegistry[key] === sym) return key;
+  },
+  useSetter: function () { setter = true; },
+  useSimple: function () { setter = false; }
+});
+
+$export($export.S + $export.F * !USE_NATIVE, 'Object', {
+  // 19.1.2.2 Object.create(O [, Properties])
+  create: $create,
+  // 19.1.2.4 Object.defineProperty(O, P, Attributes)
+  defineProperty: $defineProperty,
+  // 19.1.2.3 Object.defineProperties(O, Properties)
+  defineProperties: $defineProperties,
+  // 19.1.2.6 Object.getOwnPropertyDescriptor(O, P)
+  getOwnPropertyDescriptor: $getOwnPropertyDescriptor,
+  // 19.1.2.7 Object.getOwnPropertyNames(O)
+  getOwnPropertyNames: $getOwnPropertyNames,
+  // 19.1.2.8 Object.getOwnPropertySymbols(O)
+  getOwnPropertySymbols: $getOwnPropertySymbols
+});
+
+// 24.3.2 JSON.stringify(value [, replacer [, space]])
+$JSON && $export($export.S + $export.F * (!USE_NATIVE || $fails(function () {
+  var S = $Symbol();
+  // MS Edge converts symbol values to JSON as {}
+  // WebKit converts symbol values to JSON as null
+  // V8 throws on boxed symbols
+  return _stringify([S]) != '[null]' || _stringify({ a: S }) != '{}' || _stringify(Object(S)) != '{}';
+})), 'JSON', {
+  stringify: function stringify(it) {
+    var args = [it];
+    var i = 1;
+    var replacer, $replacer;
+    while (arguments.length > i) args.push(arguments[i++]);
+    $replacer = replacer = args[1];
+    if (!isObject(replacer) && it === undefined || isSymbol(it)) return; // IE8 returns string on undefined
+    if (!isArray(replacer)) replacer = function (key, value) {
+      if (typeof $replacer == 'function') value = $replacer.call(this, key, value);
+      if (!isSymbol(value)) return value;
+    };
+    args[1] = replacer;
+    return _stringify.apply($JSON, args);
+  }
+});
+
+// 19.4.3.4 Symbol.prototype[@@toPrimitive](hint)
+$Symbol[PROTOTYPE][TO_PRIMITIVE] || _dereq_('./_hide')($Symbol[PROTOTYPE], TO_PRIMITIVE, $Symbol[PROTOTYPE].valueOf);
+// 19.4.3.5 Symbol.prototype[@@toStringTag]
+setToStringTag($Symbol, 'Symbol');
+// 20.2.1.9 Math[@@toStringTag]
+setToStringTag(Math, 'Math', true);
+// 24.3.3 JSON[@@toStringTag]
+setToStringTag(global.JSON, 'JSON', true);
+
+},{"./_an-object":28,"./_descriptors":40,"./_enum-keys":43,"./_export":44,"./_fails":46,"./_global":49,"./_has":50,"./_hide":51,"./_is-array":58,"./_is-object":59,"./_library":67,"./_meta":68,"./_object-create":70,"./_object-dp":71,"./_object-gopd":73,"./_object-gopn":75,"./_object-gopn-ext":74,"./_object-gops":76,"./_object-keys":79,"./_object-pie":80,"./_property-desc":82,"./_redefine":83,"./_set-to-string-tag":86,"./_shared":88,"./_to-iobject":95,"./_to-primitive":98,"./_uid":99,"./_wks":102,"./_wks-define":100,"./_wks-ext":101}],123:[function(_dereq_,module,exports){
+'use strict';
+// https://github.com/tc39/Array.prototype.includes
+var $export = _dereq_('./_export');
+var $includes = _dereq_('./_array-includes')(true);
+
+$export($export.P, 'Array', {
+  includes: function includes(el /* , fromIndex = 0 */) {
+    return $includes(this, el, arguments.length > 1 ? arguments[1] : undefined);
+  }
+});
+
+_dereq_('./_add-to-unscopables')('includes');
+
+},{"./_add-to-unscopables":27,"./_array-includes":29,"./_export":44}],124:[function(_dereq_,module,exports){
+_dereq_('./_wks-define')('asyncIterator');
+
+},{"./_wks-define":100}],125:[function(_dereq_,module,exports){
+var $iterators = _dereq_('./es6.array.iterator');
+var getKeys = _dereq_('./_object-keys');
+var redefine = _dereq_('./_redefine');
+var global = _dereq_('./_global');
+var hide = _dereq_('./_hide');
+var Iterators = _dereq_('./_iterators');
+var wks = _dereq_('./_wks');
+var ITERATOR = wks('iterator');
+var TO_STRING_TAG = wks('toStringTag');
+var ArrayValues = Iterators.Array;
+
+var DOMIterables = {
+  CSSRuleList: true, // TODO: Not spec compliant, should be false.
+  CSSStyleDeclaration: false,
+  CSSValueList: false,
+  ClientRectList: false,
+  DOMRectList: false,
+  DOMStringList: false,
+  DOMTokenList: true,
+  DataTransferItemList: false,
+  FileList: false,
+  HTMLAllCollection: false,
+  HTMLCollection: false,
+  HTMLFormElement: false,
+  HTMLSelectElement: false,
+  MediaList: true, // TODO: Not spec compliant, should be false.
+  MimeTypeArray: false,
+  NamedNodeMap: false,
+  NodeList: true,
+  PaintRequestList: false,
+  Plugin: false,
+  PluginArray: false,
+  SVGLengthList: false,
+  SVGNumberList: false,
+  SVGPathSegList: false,
+  SVGPointList: false,
+  SVGStringList: false,
+  SVGTransformList: false,
+  SourceBufferList: false,
+  StyleSheetList: true, // TODO: Not spec compliant, should be false.
+  TextTrackCueList: false,
+  TextTrackList: false,
+  TouchList: false
+};
+
+for (var collections = getKeys(DOMIterables), i = 0; i < collections.length; i++) {
+  var NAME = collections[i];
+  var explicit = DOMIterables[NAME];
+  var Collection = global[NAME];
+  var proto = Collection && Collection.prototype;
+  var key;
+  if (proto) {
+    if (!proto[ITERATOR]) hide(proto, ITERATOR, ArrayValues);
+    if (!proto[TO_STRING_TAG]) hide(proto, TO_STRING_TAG, NAME);
+    Iterators[NAME] = ArrayValues;
+    if (explicit) for (key in $iterators) if (!proto[key]) redefine(proto, key, $iterators[key], true);
+  }
+}
+
+},{"./_global":49,"./_hide":51,"./_iterators":66,"./_object-keys":79,"./_redefine":83,"./_wks":102,"./es6.array.iterator":106}],126:[function(_dereq_,module,exports){
+var pSlice = Array.prototype.slice;
+var objectKeys = _dereq_('./lib/keys.js');
+var isArguments = _dereq_('./lib/is_arguments.js');
+
+var deepEqual = module.exports = function (actual, expected, opts) {
+  if (!opts) opts = {};
+  // 7.1. All identical values are equivalent, as determined by ===.
+  if (actual === expected) {
+    return true;
+
+  } else if (actual instanceof Date && expected instanceof Date) {
+    return actual.getTime() === expected.getTime();
+
+  // 7.3. Other pairs that do not both pass typeof value == 'object',
+  // equivalence is determined by ==.
+  } else if (!actual || !expected || typeof actual != 'object' && typeof expected != 'object') {
+    return opts.strict ? actual === expected : actual == expected;
+
+  // 7.4. For all other Object pairs, including Array objects, equivalence is
+  // determined by having the same number of owned properties (as verified
+  // with Object.prototype.hasOwnProperty.call), the same set of keys
+  // (although not necessarily the same order), equivalent values for every
+  // corresponding key, and an identical 'prototype' property. Note: this
+  // accounts for both named and indexed properties on Arrays.
+  } else {
+    return objEquiv(actual, expected, opts);
+  }
+}
+
+function isUndefinedOrNull(value) {
+  return value === null || value === undefined;
+}
+
+function isBuffer (x) {
+  if (!x || typeof x !== 'object' || typeof x.length !== 'number') return false;
+  if (typeof x.copy !== 'function' || typeof x.slice !== 'function') {
+    return false;
+  }
+  if (x.length > 0 && typeof x[0] !== 'number') return false;
+  return true;
+}
+
+function objEquiv(a, b, opts) {
+  var i, key;
+  if (isUndefinedOrNull(a) || isUndefinedOrNull(b))
+    return false;
+  // an identical 'prototype' property.
+  if (a.prototype !== b.prototype) return false;
+  //~~~I've managed to break Object.keys through screwy arguments passing.
+  //   Converting to array solves the problem.
+  if (isArguments(a)) {
+    if (!isArguments(b)) {
+      return false;
+    }
+    a = pSlice.call(a);
+    b = pSlice.call(b);
+    return deepEqual(a, b, opts);
+  }
+  if (isBuffer(a)) {
+    if (!isBuffer(b)) {
+      return false;
+    }
+    if (a.length !== b.length) return false;
+    for (i = 0; i < a.length; i++) {
+      if (a[i] !== b[i]) return false;
+    }
+    return true;
+  }
+  try {
+    var ka = objectKeys(a),
+        kb = objectKeys(b);
+  } catch (e) {//happens when one is a string literal and the other isn't
+    return false;
+  }
+  // having the same number of owned properties (keys incorporates
+  // hasOwnProperty)
+  if (ka.length != kb.length)
+    return false;
+  //the same set of keys (although not necessarily the same order),
+  ka.sort();
+  kb.sort();
+  //~~~cheap key test
+  for (i = ka.length - 1; i >= 0; i--) {
+    if (ka[i] != kb[i])
+      return false;
+  }
+  //equivalent values for every corresponding key, and
+  //~~~possibly expensive deep test
+  for (i = ka.length - 1; i >= 0; i--) {
+    key = ka[i];
+    if (!deepEqual(a[key], b[key], opts)) return false;
+  }
+  return typeof a === typeof b;
+}
+
+},{"./lib/is_arguments.js":127,"./lib/keys.js":128}],127:[function(_dereq_,module,exports){
+var supportsArgumentsClass = (function(){
+  return Object.prototype.toString.call(arguments)
+})() == '[object Arguments]';
+
+exports = module.exports = supportsArgumentsClass ? supported : unsupported;
+
+exports.supported = supported;
+function supported(object) {
+  return Object.prototype.toString.call(object) == '[object Arguments]';
+};
+
+exports.unsupported = unsupported;
+function unsupported(object){
+  return object &&
+    typeof object == 'object' &&
+    typeof object.length == 'number' &&
+    Object.prototype.hasOwnProperty.call(object, 'callee') &&
+    !Object.prototype.propertyIsEnumerable.call(object, 'callee') ||
+    false;
+};
+
+},{}],128:[function(_dereq_,module,exports){
+exports = module.exports = typeof Object.keys === 'function'
+  ? Object.keys : shim;
+
+exports.shim = shim;
+function shim (obj) {
+  var keys = [];
+  for (var key in obj) keys.push(key);
+  return keys;
+}
+
+},{}],129:[function(_dereq_,module,exports){
 (function (process){
 /*!
  * EventEmitter2
@@ -50704,70 +52956,956 @@ exports.all = function() {
 }();
 
 }).call(this,_dereq_('_process'))
-},{"_process":241}],26:[function(_dereq_,module,exports){
-(function (global){
-'use strict';
+},{"_process":370}],130:[function(_dereq_,module,exports){
+var equalsOptions = { strict: true };
+var _equals = _dereq_('deep-equal');
+var areEquals = function (a, b) {
+    return _equals(a, b, equalsOptions);
+};
+var helpers_1 = _dereq_('./helpers');
+exports.JsonPatchError = helpers_1.PatchError;
+exports.deepClone = helpers_1._deepClone;
+/* We use a Javascript hash to store each
+ function. Each hash entry (property) uses
+ the operation identifiers specified in rfc6902.
+ In this way, we can map each patch operation
+ to its dedicated function in efficient way.
+ */
+/* The operations applicable to an object */
+var objOps = {
+    add: function (obj, key, document) {
+        obj[key] = this.value;
+        return { newDocument: document };
+    },
+    remove: function (obj, key, document) {
+        var removed = obj[key];
+        delete obj[key];
+        return { newDocument: document, removed: removed };
+    },
+    replace: function (obj, key, document) {
+        var removed = obj[key];
+        obj[key] = this.value;
+        return { newDocument: document, removed: removed };
+    },
+    move: function (obj, key, document) {
+        /* in case move target overwrites an existing value,
+        return the removed value, this can be taxing performance-wise,
+        and is potentially unneeded */
+        var removed = getValueByPointer(document, this.path);
+        if (removed) {
+            removed = helpers_1._deepClone(removed);
+        }
+        var originalValue = applyOperation(document, { op: "remove", path: this.from }).removed;
+        applyOperation(document, { op: "add", path: this.path, value: originalValue });
+        return { newDocument: document, removed: removed };
+    },
+    copy: function (obj, key, document) {
+        var valueToCopy = getValueByPointer(document, this.from);
+        // enforce copy by value so further operations don't affect source (see issue #177)
+        applyOperation(document, { op: "add", path: this.path, value: helpers_1._deepClone(valueToCopy) });
+        return { newDocument: document };
+    },
+    test: function (obj, key, document) {
+        return { newDocument: document, test: areEquals(obj[key], this.value) };
+    },
+    _get: function (obj, key, document) {
+        this.value = obj[key];
+        return { newDocument: document };
+    }
+};
+/* The operations applicable to an array. Many are the same as for the object */
+var arrOps = {
+    add: function (arr, i, document) {
+        if (helpers_1.isInteger(i)) {
+            arr.splice(i, 0, this.value);
+        }
+        else {
+            arr[i] = this.value;
+        }
+        // this may be needed when using '-' in an array
+        return { newDocument: document, index: i };
+    },
+    remove: function (arr, i, document) {
+        var removedList = arr.splice(i, 1);
+        return { newDocument: document, removed: removedList[0] };
+    },
+    replace: function (arr, i, document) {
+        var removed = arr[i];
+        arr[i] = this.value;
+        return { newDocument: document, removed: removed };
+    },
+    move: objOps.move,
+    copy: objOps.copy,
+    test: objOps.test,
+    _get: objOps._get
+};
+/**
+ * Retrieves a value from a JSON document by a JSON pointer.
+ * Returns the value.
+ *
+ * @param document The document to get the value from
+ * @param pointer an escaped JSON pointer
+ * @return The retrieved value
+ */
+function getValueByPointer(document, pointer) {
+    if (pointer == '') {
+        return document;
+    }
+    var getOriginalDestination = { op: "_get", path: pointer };
+    applyOperation(document, getOriginalDestination);
+    return getOriginalDestination.value;
+}
+exports.getValueByPointer = getValueByPointer;
+/**
+ * Apply a single JSON Patch Operation on a JSON document.
+ * Returns the {newDocument, result} of the operation.
+ * It modifies the `document` and `operation` objects - it gets the values by reference.
+ * If you would like to avoid touching your values, clone them:
+ * `jsonpatch.applyOperation(document, jsonpatch._deepClone(operation))`.
+ *
+ * @param document The document to patch
+ * @param operation The operation to apply
+ * @param validateOperation `false` is without validation, `true` to use default jsonpatch's validation, or you can pass a `validateOperation` callback to be used for validation.
+ * @param mutateDocument Whether to mutate the original document or clone it before applying
+ * @return `{newDocument, result}` after the operation
+ */
+function applyOperation(document, operation, validateOperation, mutateDocument) {
+    if (validateOperation === void 0) { validateOperation = false; }
+    if (mutateDocument === void 0) { mutateDocument = true; }
+    if (validateOperation) {
+        if (typeof validateOperation == 'function') {
+            validateOperation(operation, 0, document, operation.path);
+        }
+        else {
+            validator(operation, 0);
+        }
+    }
+    /* ROOT OPERATIONS */
+    if (operation.path === "") {
+        var returnValue = { newDocument: document };
+        if (operation.op === 'add') {
+            returnValue.newDocument = operation.value;
+            return returnValue;
+        }
+        else if (operation.op === 'replace') {
+            returnValue.newDocument = operation.value;
+            returnValue.removed = document; //document we removed
+            return returnValue;
+        }
+        else if (operation.op === 'move' || operation.op === 'copy') {
+            returnValue.newDocument = getValueByPointer(document, operation.from); // get the value by json-pointer in `from` field
+            if (operation.op === 'move') {
+                returnValue.removed = document;
+            }
+            return returnValue;
+        }
+        else if (operation.op === 'test') {
+            returnValue.test = areEquals(document, operation.value);
+            if (returnValue.test === false) {
+                throw new exports.JsonPatchError("Test operation failed", 'TEST_OPERATION_FAILED', 0, operation, document);
+            }
+            returnValue.newDocument = document;
+            return returnValue;
+        }
+        else if (operation.op === 'remove') {
+            returnValue.removed = document;
+            returnValue.newDocument = null;
+            return returnValue;
+        }
+        else if (operation.op === '_get') {
+            operation.value = document;
+            return returnValue;
+        }
+        else {
+            if (validateOperation) {
+                throw new exports.JsonPatchError('Operation `op` property is not one of operations defined in RFC-6902', 'OPERATION_OP_INVALID', 0, operation, document);
+            }
+            else {
+                return returnValue;
+            }
+        }
+    } /* END ROOT OPERATIONS */
+    else {
+        if (!mutateDocument) {
+            document = helpers_1._deepClone(document);
+        }
+        var path = operation.path || "";
+        var keys = path.split('/');
+        var obj = document;
+        var t = 1; //skip empty element - http://jsperf.com/to-shift-or-not-to-shift
+        var len = keys.length;
+        var existingPathFragment = undefined;
+        var key = void 0;
+        var validateFunction = void 0;
+        if (typeof validateOperation == 'function') {
+            validateFunction = validateOperation;
+        }
+        else {
+            validateFunction = validator;
+        }
+        while (true) {
+            key = keys[t];
+            if (validateOperation) {
+                if (existingPathFragment === undefined) {
+                    if (obj[key] === undefined) {
+                        existingPathFragment = keys.slice(0, t).join('/');
+                    }
+                    else if (t == len - 1) {
+                        existingPathFragment = operation.path;
+                    }
+                    if (existingPathFragment !== undefined) {
+                        validateFunction(operation, 0, document, existingPathFragment);
+                    }
+                }
+            }
+            t++;
+            if (Array.isArray(obj)) {
+                if (key === '-') {
+                    key = obj.length;
+                }
+                else {
+                    if (validateOperation && !helpers_1.isInteger(key)) {
+                        throw new exports.JsonPatchError("Expected an unsigned base-10 integer value, making the new referenced value the array element with the zero-based index", "OPERATION_PATH_ILLEGAL_ARRAY_INDEX", 0, operation.path, operation);
+                    } // only parse key when it's an integer for `arr.prop` to work
+                    else if (helpers_1.isInteger(key)) {
+                        key = ~~key;
+                    }
+                }
+                if (t >= len) {
+                    if (validateOperation && operation.op === "add" && key > obj.length) {
+                        throw new exports.JsonPatchError("The specified index MUST NOT be greater than the number of elements in the array", "OPERATION_VALUE_OUT_OF_BOUNDS", 0, operation.path, operation);
+                    }
+                    var returnValue = arrOps[operation.op].call(operation, obj, key, document); // Apply patch
+                    if (returnValue.test === false) {
+                        throw new exports.JsonPatchError("Test operation failed", 'TEST_OPERATION_FAILED', 0, operation, document);
+                    }
+                    return returnValue;
+                }
+            }
+            else {
+                if (key && key.indexOf('~') != -1) {
+                    key = helpers_1.unescapePathComponent(key);
+                }
+                if (t >= len) {
+                    var returnValue = objOps[operation.op].call(operation, obj, key, document); // Apply patch
+                    if (returnValue.test === false) {
+                        throw new exports.JsonPatchError("Test operation failed", 'TEST_OPERATION_FAILED', 0, operation, document);
+                    }
+                    return returnValue;
+                }
+            }
+            obj = obj[key];
+        }
+    }
+}
+exports.applyOperation = applyOperation;
+/**
+ * Apply a full JSON Patch array on a JSON document.
+ * Returns the {newDocument, result} of the patch.
+ * It modifies the `document` object and `patch` - it gets the values by reference.
+ * If you would like to avoid touching your values, clone them:
+ * `jsonpatch.applyPatch(document, jsonpatch._deepClone(patch))`.
+ *
+ * @param document The document to patch
+ * @param patch The patch to apply
+ * @param validateOperation `false` is without validation, `true` to use default jsonpatch's validation, or you can pass a `validateOperation` callback to be used for validation.
+ * @param mutateDocument Whether to mutate the original document or clone it before applying
+ * @return An array of `{newDocument, result}` after the patch
+ */
+function applyPatch(document, patch, validateOperation, mutateDocument) {
+    if (mutateDocument === void 0) { mutateDocument = true; }
+    if (validateOperation) {
+        if (!Array.isArray(patch)) {
+            throw new exports.JsonPatchError('Patch sequence must be an array', 'SEQUENCE_NOT_AN_ARRAY');
+        }
+    }
+    if (!mutateDocument) {
+        document = helpers_1._deepClone(document);
+    }
+    var results = new Array(patch.length);
+    for (var i = 0, length_1 = patch.length; i < length_1; i++) {
+        results[i] = applyOperation(document, patch[i], validateOperation);
+        document = results[i].newDocument; // in case root was replaced
+    }
+    results.newDocument = document;
+    return results;
+}
+exports.applyPatch = applyPatch;
+/**
+ * Apply a single JSON Patch Operation on a JSON document.
+ * Returns the updated document.
+ * Suitable as a reducer.
+ *
+ * @param document The document to patch
+ * @param operation The operation to apply
+ * @return The updated document
+ */
+function applyReducer(document, operation) {
+    var operationResult = applyOperation(document, operation);
+    if (operationResult.test === false) {
+        throw new exports.JsonPatchError("Test operation failed", 'TEST_OPERATION_FAILED', 0, operation, document);
+    }
+    return operationResult.newDocument;
+}
+exports.applyReducer = applyReducer;
+/**
+ * Validates a single operation. Called from `jsonpatch.validate`. Throws `JsonPatchError` in case of an error.
+ * @param {object} operation - operation object (patch)
+ * @param {number} index - index of operation in the sequence
+ * @param {object} [document] - object where the operation is supposed to be applied
+ * @param {string} [existingPathFragment] - comes along with `document`
+ */
+function validator(operation, index, document, existingPathFragment) {
+    if (typeof operation !== 'object' || operation === null || Array.isArray(operation)) {
+        throw new exports.JsonPatchError('Operation is not an object', 'OPERATION_NOT_AN_OBJECT', index, operation, document);
+    }
+    else if (!objOps[operation.op]) {
+        throw new exports.JsonPatchError('Operation `op` property is not one of operations defined in RFC-6902', 'OPERATION_OP_INVALID', index, operation, document);
+    }
+    else if (typeof operation.path !== 'string') {
+        throw new exports.JsonPatchError('Operation `path` property is not a string', 'OPERATION_PATH_INVALID', index, operation, document);
+    }
+    else if (operation.path.indexOf('/') !== 0 && operation.path.length > 0) {
+        // paths that aren't empty string should start with "/"
+        throw new exports.JsonPatchError('Operation `path` property must start with "/"', 'OPERATION_PATH_INVALID', index, operation, document);
+    }
+    else if ((operation.op === 'move' || operation.op === 'copy') && typeof operation.from !== 'string') {
+        throw new exports.JsonPatchError('Operation `from` property is not present (applicable in `move` and `copy` operations)', 'OPERATION_FROM_REQUIRED', index, operation, document);
+    }
+    else if ((operation.op === 'add' || operation.op === 'replace' || operation.op === 'test') && operation.value === undefined) {
+        throw new exports.JsonPatchError('Operation `value` property is not present (applicable in `add`, `replace` and `test` operations)', 'OPERATION_VALUE_REQUIRED', index, operation, document);
+    }
+    else if ((operation.op === 'add' || operation.op === 'replace' || operation.op === 'test') && helpers_1.hasUndefined(operation.value)) {
+        throw new exports.JsonPatchError('Operation `value` property is not present (applicable in `add`, `replace` and `test` operations)', 'OPERATION_VALUE_CANNOT_CONTAIN_UNDEFINED', index, operation, document);
+    }
+    else if (document) {
+        if (operation.op == "add") {
+            var pathLen = operation.path.split("/").length;
+            var existingPathLen = existingPathFragment.split("/").length;
+            if (pathLen !== existingPathLen + 1 && pathLen !== existingPathLen) {
+                throw new exports.JsonPatchError('Cannot perform an `add` operation at the desired path', 'OPERATION_PATH_CANNOT_ADD', index, operation, document);
+            }
+        }
+        else if (operation.op === 'replace' || operation.op === 'remove' || operation.op === '_get') {
+            if (operation.path !== existingPathFragment) {
+                throw new exports.JsonPatchError('Cannot perform the operation at a path that does not exist', 'OPERATION_PATH_UNRESOLVABLE', index, operation, document);
+            }
+        }
+        else if (operation.op === 'move' || operation.op === 'copy') {
+            var existingValue = { op: "_get", path: operation.from, value: undefined };
+            var error = validate([existingValue], document);
+            if (error && error.name === 'OPERATION_PATH_UNRESOLVABLE') {
+                throw new exports.JsonPatchError('Cannot perform the operation from a path that does not exist', 'OPERATION_FROM_UNRESOLVABLE', index, operation, document);
+            }
+        }
+    }
+}
+exports.validator = validator;
+/**
+ * Validates a sequence of operations. If `document` parameter is provided, the sequence is additionally validated against the object document.
+ * If error is encountered, returns a JsonPatchError object
+ * @param sequence
+ * @param document
+ * @returns {JsonPatchError|undefined}
+ */
+function validate(sequence, document, externalValidator) {
+    try {
+        if (!Array.isArray(sequence)) {
+            throw new exports.JsonPatchError('Patch sequence must be an array', 'SEQUENCE_NOT_AN_ARRAY');
+        }
+        if (document) {
+            //clone document and sequence so that we can safely try applying operations
+            applyPatch(helpers_1._deepClone(document), helpers_1._deepClone(sequence), externalValidator || true);
+        }
+        else {
+            externalValidator = externalValidator || validator;
+            for (var i = 0; i < sequence.length; i++) {
+                externalValidator(sequence[i], i, document, undefined);
+            }
+        }
+    }
+    catch (e) {
+        if (e instanceof exports.JsonPatchError) {
+            return e;
+        }
+        else {
+            throw e;
+        }
+    }
+}
+exports.validate = validate;
+
+},{"./helpers":132,"deep-equal":126}],131:[function(_dereq_,module,exports){
+var equalsOptions = { strict: true };
+var _equals = _dereq_('deep-equal');
+var areEquals = function (a, b) {
+    return _equals(a, b, equalsOptions);
+};
+var helpers_1 = _dereq_('./helpers');
+var core_1 = _dereq_('./core');
+/* export all core functions */
+var core_2 = _dereq_('./core');
+exports.applyOperation = core_2.applyOperation;
+exports.applyPatch = core_2.applyPatch;
+exports.applyReducer = core_2.applyReducer;
+exports.getValueByPointer = core_2.getValueByPointer;
+exports.validate = core_2.validate;
+exports.validator = core_2.validator;
+/* export some helpers */
+var helpers_2 = _dereq_('./helpers');
+exports.JsonPatchError = helpers_2.PatchError;
+exports.deepClone = helpers_2._deepClone;
+exports.escapePathComponent = helpers_2.escapePathComponent;
+exports.unescapePathComponent = helpers_2.unescapePathComponent;
+var beforeDict = new WeakMap();
+var Mirror = (function () {
+    function Mirror(obj) {
+        this.observers = new Map();
+        this.obj = obj;
+    }
+    return Mirror;
+}());
+var ObserverInfo = (function () {
+    function ObserverInfo(callback, observer) {
+        this.callback = callback;
+        this.observer = observer;
+    }
+    return ObserverInfo;
+}());
+function getMirror(obj) {
+    return beforeDict.get(obj);
+}
+function getObserverFromMirror(mirror, callback) {
+    return mirror.observers.get(callback);
+}
+function removeObserverFromMirror(mirror, observer) {
+    mirror.observers.delete(observer.callback);
+}
+/**
+ * Detach an observer from an object
+ */
+function unobserve(root, observer) {
+    observer.unobserve();
+}
+exports.unobserve = unobserve;
+/**
+ * Observes changes made to an object, which can then be retrieved using generate
+ */
+function observe(obj, callback) {
+    var patches = [];
+    var observer;
+    var mirror = getMirror(obj);
+    if (!mirror) {
+        mirror = new Mirror(obj);
+        beforeDict.set(obj, mirror);
+    }
+    else {
+        var observerInfo = getObserverFromMirror(mirror, callback);
+        observer = observerInfo && observerInfo.observer;
+    }
+    if (observer) {
+        return observer;
+    }
+    observer = {};
+    mirror.value = helpers_1._deepClone(obj);
+    if (callback) {
+        observer.callback = callback;
+        observer.next = null;
+        var dirtyCheck = function () {
+            generate(observer);
+        };
+        var fastCheck = function () {
+            clearTimeout(observer.next);
+            observer.next = setTimeout(dirtyCheck);
+        };
+        if (typeof window !== 'undefined') {
+            if (window.addEventListener) {
+                window.addEventListener('mouseup', fastCheck);
+                window.addEventListener('keyup', fastCheck);
+                window.addEventListener('mousedown', fastCheck);
+                window.addEventListener('keydown', fastCheck);
+                window.addEventListener('change', fastCheck);
+            }
+            else {
+                document.documentElement.attachEvent('onmouseup', fastCheck);
+                document.documentElement.attachEvent('onkeyup', fastCheck);
+                document.documentElement.attachEvent('onmousedown', fastCheck);
+                document.documentElement.attachEvent('onkeydown', fastCheck);
+                document.documentElement.attachEvent('onchange', fastCheck);
+            }
+        }
+    }
+    observer.patches = patches;
+    observer.object = obj;
+    observer.unobserve = function () {
+        generate(observer);
+        clearTimeout(observer.next);
+        removeObserverFromMirror(mirror, observer);
+        if (typeof window !== 'undefined') {
+            if (window.removeEventListener) {
+                window.removeEventListener('mouseup', fastCheck);
+                window.removeEventListener('keyup', fastCheck);
+                window.removeEventListener('mousedown', fastCheck);
+                window.removeEventListener('keydown', fastCheck);
+            }
+            else {
+                document.documentElement.detachEvent('onmouseup', fastCheck);
+                document.documentElement.detachEvent('onkeyup', fastCheck);
+                document.documentElement.detachEvent('onmousedown', fastCheck);
+                document.documentElement.detachEvent('onkeydown', fastCheck);
+            }
+        }
+    };
+    mirror.observers.set(callback, new ObserverInfo(callback, observer));
+    return observer;
+}
+exports.observe = observe;
+/**
+ * Generate an array of patches from an observer
+ */
+function generate(observer) {
+    var mirror = beforeDict.get(observer.object);
+    _generate(mirror.value, observer.object, observer.patches, "");
+    if (observer.patches.length) {
+        core_1.applyPatch(mirror.value, observer.patches);
+    }
+    var temp = observer.patches;
+    if (temp.length > 0) {
+        observer.patches = [];
+        if (observer.callback) {
+            observer.callback(temp);
+        }
+    }
+    return temp;
+}
+exports.generate = generate;
+// Dirty check if obj is different from mirror, generate patches and update mirror
+function _generate(mirror, obj, patches, path) {
+    if (obj === mirror) {
+        return;
+    }
+    if (typeof obj.toJSON === "function") {
+        obj = obj.toJSON();
+    }
+    var newKeys = helpers_1._objectKeys(obj);
+    var oldKeys = helpers_1._objectKeys(mirror);
+    var changed = false;
+    var deleted = false;
+    //if ever "move" operation is implemented here, make sure this test runs OK: "should not generate the same patch twice (move)"
+    for (var t = oldKeys.length - 1; t >= 0; t--) {
+        var key = oldKeys[t];
+        var oldVal = mirror[key];
+        if (helpers_1.hasOwnProperty(obj, key) && !(obj[key] === undefined && oldVal !== undefined && Array.isArray(obj) === false)) {
+            var newVal = obj[key];
+            if (typeof oldVal == "object" && oldVal != null && typeof newVal == "object" && newVal != null) {
+                _generate(oldVal, newVal, patches, path + "/" + helpers_1.escapePathComponent(key));
+            }
+            else {
+                if (oldVal !== newVal) {
+                    changed = true;
+                    patches.push({ op: "replace", path: path + "/" + helpers_1.escapePathComponent(key), value: helpers_1._deepClone(newVal) });
+                }
+            }
+        }
+        else {
+            patches.push({ op: "remove", path: path + "/" + helpers_1.escapePathComponent(key) });
+            deleted = true; // property has been deleted
+        }
+    }
+    if (!deleted && newKeys.length == oldKeys.length) {
+        return;
+    }
+    for (var t = 0; t < newKeys.length; t++) {
+        var key = newKeys[t];
+        if (!helpers_1.hasOwnProperty(mirror, key) && obj[key] !== undefined) {
+            patches.push({ op: "add", path: path + "/" + helpers_1.escapePathComponent(key), value: helpers_1._deepClone(obj[key]) });
+        }
+    }
+}
+/**
+ * Create an array of patches from the differences in two objects
+ */
+function compare(tree1, tree2) {
+    var patches = [];
+    _generate(tree1, tree2, patches, '');
+    return patches;
+}
+exports.compare = compare;
+
+},{"./core":130,"./helpers":132,"deep-equal":126}],132:[function(_dereq_,module,exports){
+var __extends = (this && this.__extends) || function (d, b) {
+    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
+    function __() { this.constructor = d; }
+    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+};
+/*!
+ * https://github.com/Starcounter-Jack/JSON-Patch
+ * (c) 2017 Joachim Wester
+ * MIT license
+ */
+var _hasOwnProperty = Object.prototype.hasOwnProperty;
+function hasOwnProperty(obj, key) {
+    return _hasOwnProperty.call(obj, key);
+}
+exports.hasOwnProperty = hasOwnProperty;
+function _objectKeys(obj) {
+    if (Array.isArray(obj)) {
+        var keys = new Array(obj.length);
+        for (var k = 0; k < keys.length; k++) {
+            keys[k] = "" + k;
+        }
+        return keys;
+    }
+    if (Object.keys) {
+        return Object.keys(obj);
+    }
+    var keys = [];
+    for (var i in obj) {
+        if (hasOwnProperty(obj, i)) {
+            keys.push(i);
+        }
+    }
+    return keys;
+}
+exports._objectKeys = _objectKeys;
+;
+/**
+* Deeply clone the object.
+* https://jsperf.com/deep-copy-vs-json-stringify-json-parse/25 (recursiveDeepCopy)
+* @param  {any} obj value to clone
+* @return {any} cloned obj
+*/
+function _deepClone(obj) {
+    switch (typeof obj) {
+        case "object":
+            return JSON.parse(JSON.stringify(obj)); //Faster than ES5 clone - http://jsperf.com/deep-cloning-of-objects/5
+        case "undefined":
+            return null; //this is how JSON.stringify behaves for array items
+        default:
+            return obj; //no need to clone primitives
+    }
+}
+exports._deepClone = _deepClone;
+//3x faster than cached /^\d+$/.test(str)
+function isInteger(str) {
+    var i = 0;
+    var len = str.length;
+    var charCode;
+    while (i < len) {
+        charCode = str.charCodeAt(i);
+        if (charCode >= 48 && charCode <= 57) {
+            i++;
+            continue;
+        }
+        return false;
+    }
+    return true;
+}
+exports.isInteger = isInteger;
+/**
+* Escapes a json pointer path
+* @param path The raw pointer
+* @return the Escaped path
+*/
+function escapePathComponent(path) {
+    if (path.indexOf('/') === -1 && path.indexOf('~') === -1)
+        return path;
+    return path.replace(/~/g, '~0').replace(/\//g, '~1');
+}
+exports.escapePathComponent = escapePathComponent;
+/**
+ * Unescapes a json pointer path
+ * @param path The escaped pointer
+ * @return The unescaped path
+ */
+function unescapePathComponent(path) {
+    return path.replace(/~1/g, '/').replace(/~0/g, '~');
+}
+exports.unescapePathComponent = unescapePathComponent;
+function _getPathRecursive(root, obj) {
+    var found;
+    for (var key in root) {
+        if (hasOwnProperty(root, key)) {
+            if (root[key] === obj) {
+                return escapePathComponent(key) + '/';
+            }
+            else if (typeof root[key] === 'object') {
+                found = _getPathRecursive(root[key], obj);
+                if (found != '') {
+                    return escapePathComponent(key) + '/' + found;
+                }
+            }
+        }
+    }
+    return '';
+}
+exports._getPathRecursive = _getPathRecursive;
+function getPath(root, obj) {
+    if (root === obj) {
+        return '/';
+    }
+    var path = _getPathRecursive(root, obj);
+    if (path === '') {
+        throw new Error("Object not found in root");
+    }
+    return '/' + path;
+}
+exports.getPath = getPath;
+/**
+* Recursively checks whether an object has any undefined values inside.
+*/
+function hasUndefined(obj) {
+    if (obj === undefined) {
+        return true;
+    }
+    if (obj) {
+        if (Array.isArray(obj)) {
+            for (var i = 0, len = obj.length; i < len; i++) {
+                if (hasUndefined(obj[i])) {
+                    return true;
+                }
+            }
+        }
+        else if (typeof obj === "object") {
+            var objKeys = _objectKeys(obj);
+            var objKeysLength = objKeys.length;
+            for (var i = 0; i < objKeysLength; i++) {
+                if (hasUndefined(obj[objKeys[i]])) {
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+exports.hasUndefined = hasUndefined;
+var PatchError = (function (_super) {
+    __extends(PatchError, _super);
+    function PatchError(message, name, index, operation, tree) {
+        _super.call(this, message);
+        this.message = message;
+        this.name = name;
+        this.index = index;
+        this.operation = operation;
+        this.tree = tree;
+    }
+    return PatchError;
+}(Error));
+exports.PatchError = PatchError;
+
+},{}],133:[function(_dereq_,module,exports){
+"use strict";
 
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
+exports.default = void 0;
 
-var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+_dereq_("core-js/modules/es7.symbol.async-iterator");
 
-var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; /* globals OktaAuth */
+_dereq_("core-js/modules/es6.symbol");
 
-// Intentionally use native-promise-only here... Other promise libraries (es6-promise)
-// duck-punch the global Promise definition which messes up Angular 2 since it
-// also duck-punches the global Promise definition. For now, keep native-promise-only.
+_dereq_("core-js/modules/web.dom.iterable");
 
+_dereq_("core-js/modules/es6.array.iterator");
 
-var _nativePromiseOnly = _dereq_('native-promise-only');
+_dereq_("core-js/modules/es6.object.keys");
 
-var _nativePromiseOnly2 = _interopRequireDefault(_nativePromiseOnly);
+_dereq_("core-js/modules/es6.reflect.get");
 
-_dereq_('whatwg-fetch');
+var _eventemitter = _dereq_("eventemitter2");
 
-var _eventemitter = _dereq_('eventemitter2');
+var utils = _interopRequireWildcard(_dereq_("./utils/utils"));
 
-var _browserCookies = _dereq_('browser-cookies');
+function _interopRequireWildcard(obj) { if (obj && obj.__esModule) { return obj; } else { var newObj = {}; if (obj != null) { for (var key in obj) { if (Object.prototype.hasOwnProperty.call(obj, key)) { var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {}; if (desc.get || desc.set) { Object.defineProperty(newObj, key, desc); } else { newObj[key] = obj[key]; } } } } newObj.default = obj; return newObj; } }
 
-var _browserCookies2 = _interopRequireDefault(_browserCookies);
+function _typeof(obj) { if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
 
-var _shallowCopy = _dereq_('shallow-copy');
+function _slicedToArray(arr, i) { return _arrayWithHoles(arr) || _iterableToArrayLimit(arr, i) || _nonIterableRest(); }
 
-var _shallowCopy2 = _interopRequireDefault(_shallowCopy);
+function _nonIterableRest() { throw new TypeError("Invalid attempt to destructure non-iterable instance"); }
 
-var _providers = _dereq_('./providers');
+function _iterableToArrayLimit(arr, i) { var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i["return"] != null) _i["return"](); } finally { if (_d) throw _e; } } return _arr; }
 
-var providers = _interopRequireWildcard(_providers);
+function _arrayWithHoles(arr) { if (Array.isArray(arr)) return arr; }
 
-var _get2 = _dereq_('lodash/get');
+function _objectWithoutProperties(source, excluded) { if (source == null) return {}; var target = _objectWithoutPropertiesLoose(source, excluded); var key, i; if (Object.getOwnPropertySymbols) { var sourceSymbolKeys = Object.getOwnPropertySymbols(source); for (i = 0; i < sourceSymbolKeys.length; i++) { key = sourceSymbolKeys[i]; if (excluded.indexOf(key) >= 0) continue; if (!Object.prototype.propertyIsEnumerable.call(source, key)) continue; target[key] = source[key]; } } return target; }
 
-var _get3 = _interopRequireDefault(_get2);
+function _objectWithoutPropertiesLoose(source, excluded) { if (source == null) return {}; var target = {}; var sourceKeys = Object.keys(source); var key, i; for (i = 0; i < sourceKeys.length; i++) { key = sourceKeys[i]; if (excluded.indexOf(key) >= 0) continue; target[key] = source[key]; } return target; }
 
-function _interopRequireWildcard(obj) { if (obj && obj.__esModule) { return obj; } else { var newObj = {}; if (obj != null) { for (var key in obj) { if (Object.prototype.hasOwnProperty.call(obj, key)) newObj[key] = obj[key]; } } newObj.default = obj; return newObj; } }
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _possibleConstructorReturn(self, call) { if (call && (_typeof(call) === "object" || typeof call === "function")) { return call; } return _assertThisInitialized(self); }
+
+function _assertThisInitialized(self) { if (self === void 0) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return self; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function"); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, writable: true, configurable: true } }); if (superClass) _setPrototypeOf(subClass, superClass); }
+
+function _setPrototypeOf(o, p) { _setPrototypeOf = Object.setPrototypeOf || function _setPrototypeOf(o, p) { o.__proto__ = p; return o; }; return _setPrototypeOf(o, p); }
+
+function _get(target, property, receiver) { if (typeof Reflect !== "undefined" && Reflect.get) { _get = Reflect.get; } else { _get = function _get(target, property, receiver) { var base = _superPropBase(target, property); if (!base) return; var desc = Object.getOwnPropertyDescriptor(base, property); if (desc.get) { return desc.get.call(receiver); } return desc.value; }; } return _get(target, property, receiver || target); }
+
+function _superPropBase(object, property) { while (!Object.prototype.hasOwnProperty.call(object, property)) { object = _getPrototypeOf(object); if (object === null) break; } return object; }
+
+function _getPrototypeOf(o) { _getPrototypeOf = Object.setPrototypeOf ? Object.getPrototypeOf : function _getPrototypeOf(o) { return o.__proto__ || Object.getPrototypeOf(o); }; return _getPrototypeOf(o); }
+
+var EventEmitter =
+/*#__PURE__*/
+function (_EventEmitter) {
+  _inherits(EventEmitter, _EventEmitter);
+
+  function EventEmitter() {
+    var _this;
+
+    var conf = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
+
+    _classCallCheck(this, EventEmitter);
+
+    var _conf$loadLimit = conf.loadLimit,
+        loadLimit = _conf$loadLimit === void 0 ? 50 : _conf$loadLimit,
+        _conf$eventsSafeInter = conf.eventsSafeInterval,
+        eventsSafeInterval = _conf$eventsSafeInter === void 0 ? 300 : _conf$eventsSafeInter,
+        _conf$pause = conf.pause,
+        pause = _conf$pause === void 0 ? 500 : _conf$pause,
+        _conf$inspect = conf.inspect,
+        inspect = _conf$inspect === void 0 ? false : _conf$inspect,
+        ee2conf = _objectWithoutProperties(conf, ["loadLimit", "eventsSafeInterval", "pause", "inspect"]);
+
+    _this = _possibleConstructorReturn(this, _getPrototypeOf(EventEmitter).call(this, ee2conf));
+
+    var _utils$withSwitch = utils.withSwitch(false, true),
+        _utils$withSwitch2 = _slicedToArray(_utils$withSwitch, 2),
+        isPaused = _utils$withSwitch2[0],
+        togglePause = _utils$withSwitch2[1];
+
+    var overloadHandler = function overloadHandler() {
+      console.warn('Infinite loop detected');
+      togglePause();
+      setTimeout(togglePause, pause);
+    };
+
+    var dispatch = utils.observeOverload(overloadHandler, {
+      limit: loadLimit,
+      delay: eventsSafeInterval
+    });
+
+    _this.emit = function () {
+      var _get2;
+
+      if (typeof inspect === 'function') {
+        inspect();
+      }
+
+      if (isPaused()) {
+        return;
+      }
+
+      for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
+        args[_key] = arguments[_key];
+      }
+
+      (_get2 = _get(_getPrototypeOf(EventEmitter.prototype), "emit", _assertThisInitialized(_this))).call.apply(_get2, [_assertThisInitialized(_this)].concat(args));
+
+      dispatch();
+    };
+
+    return _this;
+  }
+
+  return EventEmitter;
+}(_eventemitter.EventEmitter2);
+
+exports.default = EventEmitter;
+},{"./utils/utils":146,"core-js/modules/es6.array.iterator":106,"core-js/modules/es6.object.keys":110,"core-js/modules/es6.reflect.get":112,"core-js/modules/es6.symbol":122,"core-js/modules/es7.symbol.async-iterator":124,"core-js/modules/web.dom.iterable":125,"eventemitter2":129}],134:[function(_dereq_,module,exports){
+(function (global){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = void 0;
+
+_dereq_("core-js/modules/es6.function.name");
+
+_dereq_("core-js/modules/es6.regexp.to-string");
+
+_dereq_("core-js/modules/es7.symbol.async-iterator");
+
+_dereq_("core-js/modules/es6.symbol");
+
+_dereq_("core-js/modules/es6.number.constructor");
+
+_dereq_("core-js/modules/web.dom.iterable");
+
+_dereq_("core-js/modules/es6.array.iterator");
+
+_dereq_("core-js/modules/es6.string.iterator");
+
+_dereq_("core-js/modules/es6.object.assign");
+
+_dereq_("core-js/modules/es7.array.includes");
+
+_dereq_("core-js/modules/es6.string.includes");
+
+_dereq_("core-js/modules/es6.regexp.replace");
+
+_dereq_("core-js/modules/es6.regexp.constructor");
+
+_dereq_("core-js/modules/es6.regexp.split");
+
+_dereq_("core-js/modules/es6.regexp.search");
+
+_dereq_("core-js/modules/es6.regexp.match");
+
+var _nativePromiseOnly = _interopRequireDefault(_dereq_("native-promise-only"));
+
+_dereq_("whatwg-fetch");
+
+var _EventEmitter = _interopRequireDefault(_dereq_("./EventEmitter"));
+
+var _browserCookies = _interopRequireDefault(_dereq_("browser-cookies"));
+
+var _shallowCopy = _interopRequireDefault(_dereq_("shallow-copy"));
+
+var providers = _interopRequireWildcard(_dereq_("./providers"));
+
+var _get2 = _interopRequireDefault(_dereq_("lodash/get"));
+
+var _cloneDeep2 = _interopRequireDefault(_dereq_("lodash/cloneDeep"));
+
+function _interopRequireWildcard(obj) { if (obj && obj.__esModule) { return obj; } else { var newObj = {}; if (obj != null) { for (var key in obj) { if (Object.prototype.hasOwnProperty.call(obj, key)) { var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {}; if (desc.get || desc.set) { Object.defineProperty(newObj, key, desc); } else { newObj[key] = obj[key]; } } } } newObj.default = obj; return newObj; } }
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
+function _defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }
+
+function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); return Constructor; }
+
+function _typeof(obj) { if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
+
 var isBoolean = function isBoolean(val) {
-  return (typeof val === 'undefined' ? 'undefined' : _typeof(val)) === _typeof(true);
+  return _typeof(val) === _typeof(true);
 };
+
 var isNil = function isNil(val) {
   return val === null || val === undefined;
 };
-var isObject = function isObject(val) {
-  return val && (typeof val === 'undefined' ? 'undefined' : _typeof(val)) === 'object';
-};
 
+var isObject = function isObject(val) {
+  return val && _typeof(val) === 'object';
+};
 /**
  * The Formio interface class.
  *
  *   let formio = new Formio('https://examples.form.io/example');
  */
 
-var Formio = function () {
+
+var Formio =
+/*#__PURE__*/
+function () {
   /* eslint-disable max-statements */
   function Formio(path) {
     var _this = this;
@@ -50779,9 +53917,9 @@ var Formio = function () {
     // Ensure we have an instance of Formio.
     if (!(this instanceof Formio)) {
       return new Formio(path);
-    }
+    } // Initialize our variables.
 
-    // Initialize our variables.
+
     this.base = '';
     this.projectsUrl = '';
     this.projectUrl = '';
@@ -50798,9 +53936,8 @@ var Formio = function () {
     this.vsUrl = '';
     this.vId = '';
     this.vUrl = '';
-    this.query = '';
+    this.query = ''; // Store the original path and options.
 
-    // Store the original path and options.
     this.path = path;
     this.options = options;
 
@@ -50815,8 +53952,8 @@ var Formio = function () {
     if (!path) {
       // Allow user to create new projects if this was instantiated without
       // a url
-      this.projectUrl = this.base + '/project';
-      this.projectsUrl = this.base + '/project';
+      this.projectUrl = Formio.projectUrl || "".concat(this.base, "/project");
+      this.projectsUrl = "".concat(this.base, "/project");
       this.projectId = false;
       this.query = '';
       return;
@@ -50828,16 +53965,15 @@ var Formio = function () {
 
     var project = this.projectUrl || Formio.projectUrl;
     var projectRegEx = /(^|\/)(project)($|\/[^/]+)/;
-    var isProjectUrl = path.search(projectRegEx) !== -1;
-
-    // The baseURL is the same as the projectUrl, and does not contain "/project/MONGO_ID" in
+    var isProjectUrl = path.search(projectRegEx) !== -1; // The baseURL is the same as the projectUrl, and does not contain "/project/MONGO_ID" in
     // its domain. This is almost certainly against the Open Source server.
+
     if (project && this.base === project && !isProjectUrl) {
       this.noProject = true;
       this.projectUrl = this.base;
-    }
+    } // Normalize to an absolute path.
 
-    // Normalize to an absolute path.
+
     if (path.indexOf('http') !== 0 && path.indexOf('//') !== 0) {
       path = this.base + path;
     }
@@ -50847,29 +53983,33 @@ var Formio = function () {
     var hostName = hostparts[1] + hostparts[2];
     path = hostparts.length > 3 ? hostparts[3] : '';
     var queryparts = path.split('?');
+
     if (queryparts.length > 1) {
       path = queryparts[0];
-      this.query = '?' + queryparts[1];
-    }
+      this.query = "?".concat(queryparts[1]);
+    } // Register a specific path.
 
-    // Register a specific path.
+
     var registerPath = function registerPath(name, base) {
-      _this[name + 'sUrl'] = base + '/' + name;
-      var regex = new RegExp('/' + name + '/([^/]+)');
+      _this["".concat(name, "sUrl")] = "".concat(base, "/").concat(name);
+      var regex = new RegExp("/".concat(name, "/([^/]+)"));
+
       if (path.search(regex) !== -1) {
         parts = path.match(regex);
-        _this[name + 'Url'] = parts ? base + parts[0] : '';
-        _this[name + 'Id'] = parts.length > 1 ? parts[1] : '';
+        _this["".concat(name, "Url")] = parts ? base + parts[0] : '';
+        _this["".concat(name, "Id")] = parts.length > 1 ? parts[1] : '';
         base += parts[0];
       }
-      return base;
-    };
 
-    // Register an array of items.
+      return base;
+    }; // Register an array of items.
+
+
     var registerItems = function registerItems(items, base, staticBase) {
       for (var i in items) {
         if (items.hasOwnProperty(i)) {
           var item = items[i];
+
           if (Array.isArray(item)) {
             registerItems(item, base, true);
           } else {
@@ -50895,21 +54035,23 @@ var Formio = function () {
         if (hostparts.length > 3 && path.split('/').length > 1) {
           var pathParts = path.split('/');
           pathParts.shift(); // Throw away the first /.
+
           this.projectId = pathParts.shift();
-          path = '/' + pathParts.join('/');
-          this.projectUrl = hostName + '/' + this.projectId;
+          path = "/".concat(pathParts.join('/'));
+          this.projectUrl = "".concat(hostName, "/").concat(this.projectId);
         }
       } else {
         // Get project id from subdomain.
-        if (hostparts.length > 2 && (hostparts[2].split('.').length > 2 || hostName.indexOf('localhost') !== -1)) {
+        if (hostparts.length > 2 && (hostparts[2].split('.').length > 2 || hostName.includes('localhost'))) {
           this.projectUrl = hostName;
           this.projectId = hostparts[2].split('.')[0];
         }
       }
-      this.projectsUrl = this.projectsUrl || this.base + '/project';
-    }
 
-    // Configure Form urls and form ids.
+      this.projectsUrl = this.projectsUrl || "".concat(this.base, "/project");
+    } // Configure Form urls and form ids.
+
+
     if (path.search(/(^|\/)(form)($|\/)/) !== -1) {
       registerItems(['form', ['submission', 'action', 'v']], this.projectUrl);
     } else {
@@ -50918,107 +54060,125 @@ var Formio = function () {
       this.pathType = subs && subs.length > 1 ? subs[1] : '';
       path = path.replace(subRegEx, '');
       path = path.replace(/\/$/, '');
-      this.formsUrl = this.projectUrl + '/form';
+      this.formsUrl = "".concat(this.projectUrl, "/form");
       this.formUrl = path ? this.projectUrl + path : '';
       this.formId = path.replace(/^\/+|\/+$/g, '');
       var items = ['submission', 'action', 'v'];
+
       for (var i in items) {
         if (items.hasOwnProperty(i)) {
           var item = items[i];
-          this[item + 'sUrl'] = this.projectUrl + path + '/' + item;
+          this["".concat(item, "sUrl")] = "".concat(this.projectUrl + path, "/").concat(item);
+
           if (this.pathType === item && subs.length > 2 && subs[2]) {
-            this[item + 'Id'] = subs[2].replace(/^\/+|\/+$/g, '');
-            this[item + 'Url'] = this.projectUrl + path + subs[0];
+            this["".concat(item, "Id")] = subs[2].replace(/^\/+|\/+$/g, '');
+            this["".concat(item, "Url")] = this.projectUrl + path + subs[0];
           }
         }
       }
-    }
+    } // Set the app url if it is not set.
 
-    // Set the app url if it is not set.
+
     if (!Formio.projectUrlSet) {
       Formio.projectUrl = this.projectUrl;
     }
   }
   /* eslint-enable max-statements */
 
+
   _createClass(Formio, [{
-    key: 'delete',
+    key: "delete",
     value: function _delete(type, opts) {
-      var _id = type + 'Id';
-      var _url = type + 'Url';
+      var _id = "".concat(type, "Id");
+
+      var _url = "".concat(type, "Url");
+
       if (!this[_id]) {
-        _nativePromiseOnly2.default.reject('Nothing to delete');
+        _nativePromiseOnly.default.reject('Nothing to delete');
       }
+
       Formio.cache = {};
       return this.makeRequest(type, this[_url], 'delete', null, opts);
     }
   }, {
-    key: 'index',
+    key: "index",
     value: function index(type, query, opts) {
-      var _url = type + 'Url';
+      var _url = "".concat(type, "Url");
+
       query = query || '';
+
       if (query && isObject(query)) {
-        query = '?' + Formio.serialize(query.params);
+        query = "?".concat(Formio.serialize(query.params));
       }
+
       return this.makeRequest(type, this[_url] + query, 'get', null, opts);
     }
   }, {
-    key: 'save',
+    key: "save",
     value: function save(type, data, opts) {
-      var _id = type + 'Id';
-      var _url = type + 'Url';
+      var _id = "".concat(type, "Id");
+
+      var _url = "".concat(type, "Url");
+
       var method = this[_id] || data._id ? 'put' : 'post';
-      var reqUrl = this[_id] ? this[_url] : this[type + 'sUrl'];
-      if (!this[_id] && data._id && method === 'put' && !(reqUrl.indexOf(data._id) !== -1)) {
-        reqUrl += '/' + data._id;
+      var reqUrl = this[_id] ? this[_url] : this["".concat(type, "sUrl")];
+
+      if (!this[_id] && data._id && method === 'put' && !reqUrl.includes(data._id)) {
+        reqUrl += "/".concat(data._id);
       }
+
       Formio.cache = {};
       return this.makeRequest(type, reqUrl + this.query, method, data, opts);
     }
   }, {
-    key: 'load',
+    key: "load",
     value: function load(type, query, opts) {
-      var _id = type + 'Id';
-      var _url = type + 'Url';
+      var _id = "".concat(type, "Id");
+
+      var _url = "".concat(type, "Url");
+
       if (query && isObject(query)) {
         query = Formio.serialize(query.params);
       }
+
       if (query) {
-        query = this.query ? this.query + '&' + query : '?' + query;
+        query = this.query ? "".concat(this.query, "&").concat(query) : "?".concat(query);
       } else {
         query = this.query;
       }
+
       if (!this[_id]) {
-        return _nativePromiseOnly2.default.reject('Missing ' + _id);
+        return _nativePromiseOnly.default.reject("Missing ".concat(_id));
       }
+
       return this.makeRequest(type, this[_url] + query, 'get', null, opts);
     }
   }, {
-    key: 'makeRequest',
+    key: "makeRequest",
     value: function makeRequest() {
-      for (var _len = arguments.length, args = Array(_len), _key = 0; _key < _len; _key++) {
+      for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
         args[_key] = arguments[_key];
       }
 
       return Formio.makeRequest.apply(Formio, [this].concat(args));
     }
   }, {
-    key: 'loadProject',
+    key: "loadProject",
     value: function loadProject(query, opts) {
       return this.load('project', query, opts);
     }
   }, {
-    key: 'saveProject',
+    key: "saveProject",
     value: function saveProject(data, opts) {
       return this.save('project', data, opts);
     }
   }, {
-    key: 'deleteProject',
+    key: "deleteProject",
     value: function deleteProject(opts) {
       return this.delete('project', opts);
     }
   }, {
-    key: 'loadForm',
+    key: "loadForm",
     value: function loadForm(query, opts) {
       var _this2 = this;
 
@@ -51026,119 +54186,124 @@ var Formio = function () {
         // Check to see if there isn't a number in vId.
         if (!currentForm.revisions || isNaN(parseInt(_this2.vId))) {
           return currentForm;
-        }
-        // If a submission already exists but form is marked to load current version of form.
+        } // If a submission already exists but form is marked to load current version of form.
+
+
         if (currentForm.revisions === 'current' && _this2.submissionId) {
           return currentForm;
-        }
-        // If they specified a revision form, load the revised form components.
+        } // If they specified a revision form, load the revised form components.
+
+
         if (query && isObject(query)) {
           query = Formio.serialize(query.params);
         }
+
         if (query) {
-          query = _this2.query ? _this2.query + '&' + query : '?' + query;
+          query = _this2.query ? "".concat(_this2.query, "&").concat(query) : "?".concat(query);
         } else {
           query = _this2.query;
         }
+
         return _this2.makeRequest('form', _this2.vUrl + query, 'get', null, opts).then(function (revisionForm) {
-          currentForm.components = revisionForm.components;
-          // Using object.assign so we don't cross polinate multiple form loads.
+          currentForm.components = revisionForm.components; // Using object.assign so we don't cross polinate multiple form loads.
+
           return Object.assign({}, currentForm);
-        })
-        // If we couldn't load the revision, just return the original form.
+        }) // If we couldn't load the revision, just return the original form.
         .catch(function () {
           return Object.assign({}, currentForm);
         });
       });
     }
   }, {
-    key: 'saveForm',
+    key: "saveForm",
     value: function saveForm(data, opts) {
       return this.save('form', data, opts);
     }
   }, {
-    key: 'deleteForm',
+    key: "deleteForm",
     value: function deleteForm(opts) {
       return this.delete('form', opts);
     }
   }, {
-    key: 'loadForms',
+    key: "loadForms",
     value: function loadForms(query, opts) {
       return this.index('forms', query, opts);
     }
   }, {
-    key: 'loadSubmission',
+    key: "loadSubmission",
     value: function loadSubmission(query, opts) {
       var _this3 = this;
 
       return this.load('submission', query, opts).then(function (submission) {
         _this3.vId = submission._fvid;
-        _this3.vUrl = _this3.formUrl + '/v/' + _this3.vId;
+        _this3.vUrl = "".concat(_this3.formUrl, "/v/").concat(_this3.vId);
         return submission;
       });
     }
   }, {
-    key: 'saveSubmission',
+    key: "saveSubmission",
     value: function saveSubmission(data, opts) {
       if (!isNaN(parseInt(this.vId))) {
         data._fvid = this.vId;
       }
+
       return this.save('submission', data, opts);
     }
   }, {
-    key: 'deleteSubmission',
+    key: "deleteSubmission",
     value: function deleteSubmission(opts) {
       return this.delete('submission', opts);
     }
   }, {
-    key: 'loadSubmissions',
+    key: "loadSubmissions",
     value: function loadSubmissions(query, opts) {
       return this.index('submissions', query, opts);
     }
   }, {
-    key: 'loadAction',
+    key: "loadAction",
     value: function loadAction(query, opts) {
       return this.load('action', query, opts);
     }
   }, {
-    key: 'saveAction',
+    key: "saveAction",
     value: function saveAction(data, opts) {
       return this.save('action', data, opts);
     }
   }, {
-    key: 'deleteAction',
+    key: "deleteAction",
     value: function deleteAction(opts) {
       return this.delete('action', opts);
     }
   }, {
-    key: 'loadActions',
+    key: "loadActions",
     value: function loadActions(query, opts) {
       return this.index('actions', query, opts);
     }
   }, {
-    key: 'availableActions',
+    key: "availableActions",
     value: function availableActions() {
-      return this.makeRequest('availableActions', this.formUrl + '/actions');
+      return this.makeRequest('availableActions', "".concat(this.formUrl, "/actions"));
     }
   }, {
-    key: 'actionInfo',
+    key: "actionInfo",
     value: function actionInfo(name) {
-      return this.makeRequest('actionInfo', this.formUrl + '/actions/' + name);
+      return this.makeRequest('actionInfo', "".concat(this.formUrl, "/actions/").concat(name));
     }
   }, {
-    key: 'isObjectId',
+    key: "isObjectId",
     value: function isObjectId(id) {
       var checkForHexRegExp = new RegExp('^[0-9a-fA-F]{24}$');
       return checkForHexRegExp.test(id);
     }
   }, {
-    key: 'getProjectId',
+    key: "getProjectId",
     value: function getProjectId() {
       if (!this.projectId) {
-        return _nativePromiseOnly2.default.resolve('');
+        return _nativePromiseOnly.default.resolve('');
       }
+
       if (this.isObjectId(this.projectId)) {
-        return _nativePromiseOnly2.default.resolve(this.projectId);
+        return _nativePromiseOnly.default.resolve(this.projectId);
       } else {
         return this.loadProject().then(function (project) {
           return project._id;
@@ -51146,13 +54311,14 @@ var Formio = function () {
       }
     }
   }, {
-    key: 'getFormId',
+    key: "getFormId",
     value: function getFormId() {
       if (!this.formId) {
-        return _nativePromiseOnly2.default.resolve('');
+        return _nativePromiseOnly.default.resolve('');
       }
+
       if (this.isObjectId(this.formId)) {
-        return _nativePromiseOnly2.default.resolve(this.formId);
+        return _nativePromiseOnly.default.resolve(this.formId);
       } else {
         return this.loadForm().then(function (form) {
           return form._id;
@@ -51160,16 +54326,15 @@ var Formio = function () {
       }
     }
   }, {
-    key: 'currentUser',
+    key: "currentUser",
     value: function currentUser(options) {
       return Formio.currentUser(this, options);
     }
   }, {
-    key: 'accessInfo',
+    key: "accessInfo",
     value: function accessInfo() {
       return Formio.accessInfo(this);
     }
-
     /**
      * Returns the JWT token for this instance.
      *
@@ -51177,11 +54342,12 @@ var Formio = function () {
      */
 
   }, {
-    key: 'getToken',
+    key: "getToken",
     value: function getToken(options) {
-      return Formio.getToken(Object.assign({ formio: this }, this.options, options));
+      return Formio.getToken(Object.assign({
+        formio: this
+      }, this.options, options));
     }
-
     /**
      * Sets the JWT token for this instance.
      *
@@ -51189,23 +54355,26 @@ var Formio = function () {
      */
 
   }, {
-    key: 'setToken',
+    key: "setToken",
     value: function setToken(token, options) {
-      return Formio.setToken(token, Object.assign({ formio: this }, this.options, options));
+      return Formio.setToken(token, Object.assign({
+        formio: this
+      }, this.options, options));
     }
-
     /**
      * Returns a temporary authentication token for single purpose token generation.
      */
 
   }, {
-    key: 'getTempToken',
+    key: "getTempToken",
     value: function getTempToken(expire, allowed, options) {
       var token = Formio.getToken(options);
+
       if (!token) {
-        return _nativePromiseOnly2.default.reject('You must be authenticated to generate a temporary auth token.');
+        return _nativePromiseOnly.default.reject('You must be authenticated to generate a temporary auth token.');
       }
-      return this.makeRequest('tempToken', this.projectUrl + '/token', 'GET', null, {
+
+      return this.makeRequest('tempToken', "".concat(this.projectUrl, "/token"), 'GET', null, {
         ignoreCache: true,
         header: new Headers({
           'x-expire': expire,
@@ -51213,7 +54382,6 @@ var Formio = function () {
         })
       });
     }
-
     /**
      * Get a download url for a submission PDF of this submission.
      *
@@ -51221,12 +54389,12 @@ var Formio = function () {
      */
 
   }, {
-    key: 'getDownloadUrl',
+    key: "getDownloadUrl",
     value: function getDownloadUrl(form) {
       var _this4 = this;
 
       if (!this.submissionId) {
-        return _nativePromiseOnly2.default.resolve('');
+        return _nativePromiseOnly.default.resolve('');
       }
 
       if (!form) {
@@ -51235,19 +54403,19 @@ var Formio = function () {
           if (!_form) {
             return '';
           }
+
           return _this4.getDownloadUrl(_form);
         });
       }
 
-      var apiUrl = '/project/' + form.project;
-      apiUrl += '/form/' + form._id;
-      apiUrl += '/submission/' + this.submissionId;
+      var apiUrl = "/project/".concat(form.project);
+      apiUrl += "/form/".concat(form._id);
+      apiUrl += "/submission/".concat(this.submissionId);
       apiUrl += '/download';
-
       var download = this.base + apiUrl;
-      return new _nativePromiseOnly2.default(function (resolve, reject) {
-        _this4.getTempToken(3600, 'GET:' + apiUrl).then(function (tempToken) {
-          download += '?token=' + tempToken.key;
+      return new _nativePromiseOnly.default(function (resolve, reject) {
+        _this4.getTempToken(3600, "GET:".concat(apiUrl)).then(function (tempToken) {
+          download += "?token=".concat(tempToken.key);
           resolve(download);
         }, function () {
           resolve(download);
@@ -51255,8 +54423,8 @@ var Formio = function () {
       });
     }
   }, {
-    key: 'uploadFile',
-    value: function uploadFile(storage, file, fileName, dir, progressCallback, url) {
+    key: "uploadFile",
+    value: function uploadFile(storage, file, fileName, dir, progressCallback, url, options) {
       var _this5 = this;
 
       var requestArgs = {
@@ -51271,19 +54439,21 @@ var Formio = function () {
           if (storage && isNil(result)) {
             if (Formio.providers.storage.hasOwnProperty(storage)) {
               var provider = new Formio.providers.storage[storage](_this5);
-              return provider.uploadFile(file, fileName, dir, progressCallback, url);
+              return provider.uploadFile(file, fileName, dir, progressCallback, url, options);
             } else {
               throw 'Storage provider not found';
             }
           }
-          return result || { url: '' };
+
+          return result || {
+            url: ''
+          };
         });
       });
-
       return Formio.pluginAlter('wrapFileRequestPromise', request, requestArgs);
     }
   }, {
-    key: 'downloadFile',
+    key: "downloadFile",
     value: function downloadFile(file) {
       var _this6 = this;
 
@@ -51291,7 +54461,6 @@ var Formio = function () {
         method: 'download',
         file: file
       };
-
       var request = Formio.pluginWait('preRequest', requestArgs).then(function () {
         return Formio.pluginGet('fileRequest', requestArgs).then(function (result) {
           if (file.storage && isNil(result)) {
@@ -51302,33 +54471,35 @@ var Formio = function () {
               throw 'Storage provider not found';
             }
           }
-          return result || { url: '' };
+
+          return result || {
+            url: ''
+          };
         });
       });
-
       return Formio.pluginAlter('wrapFileRequestPromise', request, requestArgs);
-    }
-
-    // Determine if the user can submit the form.
+    } // Determine if the user can submit the form.
 
   }, {
-    key: 'canSubmit',
+    key: "canSubmit",
     value: function canSubmit() {
       /* eslint-disable max-statements, max-depth */
-      return _nativePromiseOnly2.default.all([this.loadForm(), this.currentUser(), this.accessInfo()]).then(function (results) {
+      return _nativePromiseOnly.default.all([this.loadForm(), this.currentUser(), this.accessInfo()]).then(function (results) {
         var form = results.shift();
         var user = results.shift();
-        var access = results.shift();
+        var access = results.shift(); // Get the anonymous and admin roles.
 
-        // Get the anonymous and admin roles.
         var anonRole = {};
         var adminRole = {};
+
         for (var roleName in access.roles) {
           if (access.roles.hasOwnProperty(roleName)) {
             var role = access.roles[roleName];
+
             if (role.default) {
               anonRole = role;
             }
+
             if (role.admin) {
               adminRole = role;
             }
@@ -51336,87 +54507,102 @@ var Formio = function () {
         }
 
         var canSubmit = false;
-        var canSubmitAnonymously = false;
+        var canSubmitAnonymously = false; // If the user is an admin, then they can submit this form.
 
-        // If the user is an admin, then they can submit this form.
-        if (user && user.roles.indexOf(adminRole._id) !== -1) {
+        if (user && user.roles.includes(adminRole._id)) {
           return true;
         }
 
         for (var i in form.submissionAccess) {
           if (form.submissionAccess.hasOwnProperty(i)) {
             var subRole = form.submissionAccess[i];
+
             if (subRole.type === 'create_all' || subRole.type === 'create_own') {
               for (var j in subRole.roles) {
                 if (subRole.roles.hasOwnProperty(j)) {
                   // Check if anonymous is allowed.
                   if (anonRole._id === subRole.roles[j]) {
                     canSubmitAnonymously = true;
-                  }
-                  // Check if the logged in user has the appropriate role.
-                  if (user && user.roles.indexOf(subRole.roles[j]) !== -1) {
+                  } // Check if the logged in user has the appropriate role.
+
+
+                  if (user && user.roles.includes(subRole.roles[j])) {
                     canSubmit = true;
                     break;
                   }
                 }
               }
+
               if (canSubmit) {
                 break;
               }
             }
           }
-        }
-        // If their user cannot submit, but anonymous can, then delete token and allow submission.
+        } // If their user cannot submit, but anonymous can, then delete token and allow submission.
+
+
         if (!canSubmit && canSubmitAnonymously) {
           canSubmit = true;
           Formio.setUser(null);
         }
+
         return canSubmit;
       });
       /* eslint-enable max-statements, max-depth */
     }
   }, {
-    key: 'getUrlParts',
+    key: "getUrlParts",
     value: function getUrlParts(url) {
       return Formio.getUrlParts(url, this);
     }
   }], [{
-    key: 'loadProjects',
+    key: "loadProjects",
     value: function loadProjects(query, opts) {
       query = query || '';
+
       if (isObject(query)) {
-        query = '?' + Formio.serialize(query.params);
+        query = "?".concat(Formio.serialize(query.params));
       }
-      return Formio.makeStaticRequest(Formio.baseUrl + '/project' + query, 'GET', null, opts);
+
+      return Formio.makeStaticRequest("".concat(Formio.baseUrl, "/project").concat(query), 'GET', null, opts);
     }
   }, {
-    key: 'getUrlParts',
+    key: "getUrlParts",
     value: function getUrlParts(url, formio) {
       var base = formio && formio.base ? formio.base : Formio.baseUrl;
       var regex = '^(http[s]?:\\/\\/)';
+
       if (base && url.indexOf(base) === 0) {
-        regex += '(' + base.replace(/^http[s]?:\/\//, '') + ')';
+        regex += "(".concat(base.replace(/^http[s]?:\/\//, ''), ")");
       } else {
         regex += '([^/]+)';
       }
+
       regex += '($|\\/.*)';
       return url.match(new RegExp(regex));
     }
   }, {
-    key: 'serialize',
-    value: function serialize(obj) {
+    key: "serialize",
+    value: function serialize(obj, _interpolate) {
       var str = [];
+
+      var interpolate = function interpolate(item) {
+        return _interpolate ? _interpolate(item) : item;
+      };
+
       for (var p in obj) {
         if (obj.hasOwnProperty(p)) {
-          str.push(encodeURIComponent(p) + '=' + encodeURIComponent(obj[p]));
+          str.push("".concat(encodeURIComponent(p), "=").concat(encodeURIComponent(interpolate(obj[p]))));
         }
       }
+
       return str.join('&');
     }
   }, {
-    key: 'getRequestArgs',
+    key: "getRequestArgs",
     value: function getRequestArgs(formio, type, url, method, data, opts) {
       method = (method || 'GET').toUpperCase();
+
       if (!opts || !isObject(opts)) {
         opts = {};
       }
@@ -51435,10 +54621,11 @@ var Formio = function () {
       if (formio) {
         requestArgs.formio = formio;
       }
+
       return requestArgs;
     }
   }, {
-    key: 'makeStaticRequest',
+    key: "makeStaticRequest",
     value: function makeStaticRequest(url, method, data, opts) {
       var requestArgs = Formio.getRequestArgs(null, '', url, method, data, opts);
       var request = Formio.pluginWait('preRequest', requestArgs).then(function () {
@@ -51446,14 +54633,14 @@ var Formio = function () {
           if (isNil(result)) {
             return Formio.request(url, method, requestArgs.data, requestArgs.opts.header, requestArgs.opts);
           }
+
           return result;
         });
       });
-
       return Formio.pluginAlter('wrapStaticRequestPromise', request, requestArgs);
     }
   }, {
-    key: 'makeRequest',
+    key: "makeRequest",
     value: function makeRequest(formio, type, url, method, data, opts) {
       if (!formio) {
         return Formio.makeStaticRequest(url, method, data, opts);
@@ -51467,43 +54654,46 @@ var Formio = function () {
           if (isNil(result)) {
             return Formio.request(url, method, requestArgs.data, requestArgs.opts.header, requestArgs.opts);
           }
+
           return result;
         });
       });
-
       return Formio.pluginAlter('wrapRequestPromise', request, requestArgs);
     }
   }, {
-    key: 'request',
+    key: "request",
     value: function request(url, method, data, header, opts) {
       if (!url) {
-        return _nativePromiseOnly2.default.reject('No url provided');
+        return _nativePromiseOnly.default.reject('No url provided');
       }
-      method = (method || 'GET').toUpperCase();
 
-      // For reverse compatibility, if they provided the ignoreCache parameter,
+      method = (method || 'GET').toUpperCase(); // For reverse compatibility, if they provided the ignoreCache parameter,
       // then change it back to the options format where that is a parameter.
+
       if (isBoolean(opts)) {
-        opts = { ignoreCache: opts };
+        opts = {
+          ignoreCache: opts
+        };
       }
+
       if (!opts || !isObject(opts)) {
         opts = {};
-      }
+      } // Generate a cachekey.
 
-      // Generate a cachekey.
-      var cacheKey = btoa(url);
 
-      // Get the cached promise to save multiple loads.
+      var cacheKey = btoa(url); // Get the cached promise to save multiple loads.
+
       if (!opts.ignoreCache && method === 'GET' && Formio.cache.hasOwnProperty(cacheKey)) {
-        return _nativePromiseOnly2.default.resolve(Formio.cache[cacheKey]);
-      }
+        return _nativePromiseOnly.default.resolve((0, _cloneDeep2.default)(Formio.cache[cacheKey]));
+      } // Set up and fetch request
 
-      // Set up and fetch request
+
       var headers = header || new Headers(opts.headers || {
         'Accept': 'application/json',
         'Content-type': 'application/json; charset=UTF-8'
       });
       var token = Formio.getToken(opts);
+
       if (token && !opts.noToken) {
         headers.append('x-jwt-token', token);
       }
@@ -51513,18 +54703,20 @@ var Formio = function () {
         headers: headers,
         mode: 'cors'
       };
+
       if (data) {
         options.body = JSON.stringify(data);
-      }
+      } // Allow plugins to alter the options.
 
-      // Allow plugins to alter the options.
+
       options = Formio.pluginAlter('requestOptions', options, url);
-      if (options.namespace) {
-        opts.namespace = options.namespace;
+
+      if (options.namespace || Formio.namespace) {
+        opts.namespace = options.namespace || Formio.namespace;
       }
 
       var requestToken = options.headers.get('x-jwt-token');
-      return fetch(url, options).then(function (response) {
+      var result = fetch(url, options).then(function (response) {
         // Allow plugins to respond.
         response = Formio.pluginAlter('requestResponse', response, Formio);
 
@@ -51534,45 +54726,50 @@ var Formio = function () {
             Formio.events.emit('formio.sessionExpired', response.body);
           } else if (response.status === 401) {
             Formio.events.emit('formio.unauthorized', response.body);
-          }
-          // Parse and return the error as a rejected promise to reject this promise
-          return (response.headers.get('content-type').indexOf('application/json') !== -1 ? response.json() : response.text()).then(function (error) {
-            return _nativePromiseOnly2.default.reject(error);
+          } // Parse and return the error as a rejected promise to reject this promise
+
+
+          return (response.headers.get('content-type').includes('application/json') ? response.json() : response.text()).then(function (error) {
+            return _nativePromiseOnly.default.reject(error);
           });
-        }
+        } // Handle fetch results
 
-        // Handle fetch results
-        var token = response.headers.get('x-jwt-token');
 
-        // In some strange cases, the fetch library will return an x-jwt-token without sending
+        var token = response.headers.get('x-jwt-token'); // In some strange cases, the fetch library will return an x-jwt-token without sending
         // one to the server. This has even been debugged on the server to verify that no token
         // was introduced with the request, but the response contains a token. This is an Invalid
         // case where we do not send an x-jwt-token and get one in return for any GET request.
+
         var tokenIntroduced = false;
-        if (method === 'GET' && !requestToken && token && !opts.external && !(url.indexOf('token=') !== -1) && !(url.indexOf('x-jwt-token=') !== -1)) {
+
+        if (method === 'GET' && !requestToken && token && !opts.external && !url.includes('token=') && !url.includes('x-jwt-token=')) {
           console.warn('Token was introduced in request.');
           tokenIntroduced = true;
         }
 
         if (response.status >= 200 && response.status < 300 && token && token !== '' && !tokenIntroduced) {
           Formio.setToken(token, opts);
-        }
-        // 204 is no content. Don't try to .json() it.
+        } // 204 is no content. Don't try to .json() it.
+
+
         if (response.status === 204) {
           return {};
         }
 
-        var getResult = response.headers.get('content-type').indexOf('application/json') !== -1 ? response.json() : response.text();
+        var getResult = response.headers.get('content-type').includes('application/json') ? response.json() : response.text();
         return getResult.then(function (result) {
           // Add some content-range metadata to the result here
           var range = response.headers.get('content-range');
+
           if (range && isObject(result)) {
             range = range.split('/');
+
             if (range[0] !== '*') {
               var skipLimit = range[0].split('-');
               result.skip = Number(skipLimit[0]);
               result.limit = skipLimit[1] - skipLimit[0] + 1;
             }
+
             result.serverCount = range[1] === '*' ? range[1] : Number(range[1]);
           }
 
@@ -51583,9 +54780,8 @@ var Formio = function () {
           var headers = {};
           response.headers.forEach(function (item, key) {
             headers[key] = item;
-          });
+          }); // Return the result with the headers.
 
-          // Return the result with the headers.
           return {
             result: result,
             headers: headers
@@ -51594,23 +54790,22 @@ var Formio = function () {
       }).then(function (result) {
         if (opts.getHeaders) {
           return result;
+        } // Cache the response.
+
+
+        if (method === 'GET') {
+          Formio.cache[cacheKey] = (0, _cloneDeep2.default)(result);
         }
 
-        var resultCopy = {};
+        var resultCopy = {}; // Shallow copy result so modifications don't end up in cache
 
-        // Shallow copy result so modifications don't end up in cache
         if (Array.isArray(result)) {
-          resultCopy = result.map(_shallowCopy2.default);
+          resultCopy = result.map(_shallowCopy.default);
           resultCopy.skip = result.skip;
           resultCopy.limit = result.limit;
           resultCopy.serverCount = result.serverCount;
         } else {
-          resultCopy = (0, _shallowCopy2.default)(result);
-        }
-
-        // Cache the response.
-        if (method === 'GET') {
-          Formio.cache[cacheKey] = resultCopy;
+          resultCopy = (0, _shallowCopy.default)(result);
         }
 
         return resultCopy;
@@ -51619,22 +54814,31 @@ var Formio = function () {
           Formio.setToken(null, opts);
           Formio.events.emit('formio.badToken', err);
         }
+
         if (err.message) {
-          err.message = 'Could not connect to API server (' + err.message + ')';
+          err.message = "Could not connect to API server (".concat(err.message, ")");
           err.networkError = true;
         }
-        return _nativePromiseOnly2.default.reject(err);
-      });
-    }
 
-    // Needed to maintain reverse compatability...
+        if (method === 'GET') {
+          delete Formio.cache[cacheKey];
+        }
+
+        return _nativePromiseOnly.default.reject(err);
+      });
+      return result;
+    } // Needed to maintain reverse compatability...
 
   }, {
-    key: 'setToken',
-    value: function setToken(token, opts) {
-      token = token || '';
-      opts = typeof opts === 'string' ? { namespace: opts } : opts || {};
-      var tokenName = (opts.namespace || 'formio') + 'Token';
+    key: "setToken",
+    value: function setToken() {
+      var token = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : '';
+      var opts = arguments.length > 1 ? arguments[1] : undefined;
+      opts = typeof opts === 'string' ? {
+        namespace: opts
+      } : opts || {};
+      var tokenName = "".concat(opts.namespace || Formio.namespace || 'formio', "Token");
+
       if (!Formio.tokens) {
         Formio.tokens = {};
       }
@@ -51644,28 +54848,38 @@ var Formio = function () {
       }
 
       Formio.tokens[tokenName] = token;
+
       if (!token) {
-        Formio.setUser(null, opts);
-        // iOS in private browse mode will throw an error but we can't detect ahead of time that we are in private mode.
+        Formio.setUser(null, opts); // iOS in private browse mode will throw an error but we can't detect ahead of time that we are in private mode.
+
         try {
           return localStorage.removeItem(tokenName);
         } catch (err) {
-          return _browserCookies2.default.erase(tokenName, { path: '/' });
+          return _browserCookies.default.erase(tokenName, {
+            path: '/'
+          });
         }
-      }
-      // iOS in private browse mode will throw an error but we can't detect ahead of time that we are in private mode.
+      } // iOS in private browse mode will throw an error but we can't detect ahead of time that we are in private mode.
+
+
       try {
         localStorage.setItem(tokenName, token);
       } catch (err) {
-        _browserCookies2.default.set(tokenName, token, { path: '/' });
+        _browserCookies.default.set(tokenName, token, {
+          path: '/'
+        });
       }
+
       return Formio.currentUser(opts.formio, opts); // Run this so user is updated if null
     }
   }, {
-    key: 'getToken',
+    key: "getToken",
     value: function getToken(options) {
-      options = typeof options === 'string' ? { namespace: options } : options || {};
-      var tokenName = (options.namespace || 'formio') + 'Token';
+      options = typeof options === 'string' ? {
+        namespace: options
+      } : options || {};
+      var tokenName = "".concat(options.namespace || Formio.namespace || 'formio', "Token");
+
       if (!Formio.tokens) {
         Formio.tokens = {};
       }
@@ -51673,108 +54887,122 @@ var Formio = function () {
       if (Formio.tokens[tokenName]) {
         return Formio.tokens[tokenName];
       }
+
       try {
         Formio.tokens[tokenName] = localStorage.getItem(tokenName) || '';
         return Formio.tokens[tokenName];
       } catch (e) {
-        Formio.tokens[tokenName] = _browserCookies2.default.get(tokenName);
+        Formio.tokens[tokenName] = _browserCookies.default.get(tokenName);
         return Formio.tokens[tokenName];
       }
     }
   }, {
-    key: 'setUser',
-    value: function setUser(user, opts) {
-      opts = opts || {};
-      var userName = (opts.namespace || 'formio') + 'User';
+    key: "setUser",
+    value: function setUser(user) {
+      var opts = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+      var userName = "".concat(opts.namespace || Formio.namespace || 'formio', "User");
+
       if (!user) {
-        this.setToken(null, opts);
-        // iOS in private browse mode will throw an error but we can't detect ahead of time that we are in private mode.
+        Formio.setToken(null, opts); // Emit an event on the cleared user.
+
+        Formio.events.emit('formio.user', null); // iOS in private browse mode will throw an error but we can't detect ahead of time that we are in private mode.
+
         try {
           return localStorage.removeItem(userName);
         } catch (err) {
-          return _browserCookies2.default.erase(userName, { path: '/' });
+          return _browserCookies.default.erase(userName, {
+            path: '/'
+          });
         }
-      }
-      // iOS in private browse mode will throw an error but we can't detect ahead of time that we are in private mode.
+      } // iOS in private browse mode will throw an error but we can't detect ahead of time that we are in private mode.
+
+
       try {
         localStorage.setItem(userName, JSON.stringify(user));
       } catch (err) {
-        _browserCookies2.default.set(userName, JSON.stringify(user), { path: '/' });
-      }
+        _browserCookies.default.set(userName, JSON.stringify(user), {
+          path: '/'
+        });
+      } // Emit an event on the authenticated user.
+
+
+      Formio.events.emit('formio.user', user);
     }
   }, {
-    key: 'getUser',
+    key: "getUser",
     value: function getUser(options) {
       options = options || {};
-      var userName = (options.namespace || 'formio') + 'User';
+      var userName = "".concat(options.namespace || Formio.namespace || 'formio', "User");
+
       try {
         return JSON.parse(localStorage.getItem(userName) || null);
       } catch (e) {
-        return JSON.parse(_browserCookies2.default.get(userName));
+        return JSON.parse(_browserCookies.default.get(userName));
       }
     }
   }, {
-    key: 'setBaseUrl',
+    key: "setBaseUrl",
     value: function setBaseUrl(url) {
       Formio.baseUrl = url;
+
       if (!Formio.projectUrlSet) {
         Formio.projectUrl = url;
       }
     }
   }, {
-    key: 'getBaseUrl',
+    key: "getBaseUrl",
     value: function getBaseUrl() {
       return Formio.baseUrl;
     }
   }, {
-    key: 'setApiUrl',
+    key: "setApiUrl",
     value: function setApiUrl(url) {
       return Formio.setBaseUrl(url);
     }
   }, {
-    key: 'getApiUrl',
+    key: "getApiUrl",
     value: function getApiUrl() {
       return Formio.getBaseUrl();
     }
   }, {
-    key: 'setAppUrl',
+    key: "setAppUrl",
     value: function setAppUrl(url) {
       console.warn('Formio.setAppUrl() is deprecated. Use Formio.setProjectUrl instead.');
       Formio.projectUrl = url;
       Formio.projectUrlSet = true;
     }
   }, {
-    key: 'setProjectUrl',
+    key: "setProjectUrl",
     value: function setProjectUrl(url) {
       Formio.projectUrl = url;
       Formio.projectUrlSet = true;
     }
   }, {
-    key: 'getAppUrl',
+    key: "getAppUrl",
     value: function getAppUrl() {
       console.warn('Formio.getAppUrl() is deprecated. Use Formio.getProjectUrl instead.');
       return Formio.projectUrl;
     }
   }, {
-    key: 'getProjectUrl',
+    key: "getProjectUrl",
     value: function getProjectUrl() {
       return Formio.projectUrl;
     }
   }, {
-    key: 'clearCache',
+    key: "clearCache",
     value: function clearCache() {
       Formio.cache = {};
     }
   }, {
-    key: 'noop',
+    key: "noop",
     value: function noop() {}
   }, {
-    key: 'identity',
+    key: "identity",
     value: function identity(value) {
       return value;
     }
   }, {
-    key: 'deregisterPlugin',
+    key: "deregisterPlugin",
     value: function deregisterPlugin(plugin) {
       var beforeLength = Formio.plugins.length;
       Formio.plugins = Formio.plugins.filter(function (p) {
@@ -51788,7 +55016,7 @@ var Formio = function () {
       return beforeLength !== Formio.plugins.length;
     }
   }, {
-    key: 'registerPlugin',
+    key: "registerPlugin",
     value: function registerPlugin(plugin, name) {
       Formio.plugins.push(plugin);
       Formio.plugins.sort(function (a, b) {
@@ -51798,7 +55026,7 @@ var Formio = function () {
       (plugin.init || Formio.noop).call(plugin, Formio);
     }
   }, {
-    key: 'getPlugin',
+    key: "getPlugin",
     value: function getPlugin(name) {
       var _iteratorNormalCompletion = true;
       var _didIteratorError = false;
@@ -51817,7 +55045,7 @@ var Formio = function () {
         _iteratorError = err;
       } finally {
         try {
-          if (!_iteratorNormalCompletion && _iterator.return) {
+          if (!_iteratorNormalCompletion && _iterator.return != null) {
             _iterator.return();
           }
         } finally {
@@ -51830,22 +55058,22 @@ var Formio = function () {
       return null;
     }
   }, {
-    key: 'pluginWait',
+    key: "pluginWait",
     value: function pluginWait(pluginFn) {
-      for (var _len2 = arguments.length, args = Array(_len2 > 1 ? _len2 - 1 : 0), _key2 = 1; _key2 < _len2; _key2++) {
+      for (var _len2 = arguments.length, args = new Array(_len2 > 1 ? _len2 - 1 : 0), _key2 = 1; _key2 < _len2; _key2++) {
         args[_key2 - 1] = arguments[_key2];
       }
 
-      return _nativePromiseOnly2.default.all(Formio.plugins.map(function (plugin) {
+      return _nativePromiseOnly.default.all(Formio.plugins.map(function (plugin) {
         var _ref;
 
         return (_ref = plugin[pluginFn] || Formio.noop).call.apply(_ref, [plugin].concat(args));
       }));
     }
   }, {
-    key: 'pluginGet',
+    key: "pluginGet",
     value: function pluginGet(pluginFn) {
-      for (var _len3 = arguments.length, args = Array(_len3 > 1 ? _len3 - 1 : 0), _key3 = 1; _key3 < _len3; _key3++) {
+      for (var _len3 = arguments.length, args = new Array(_len3 > 1 ? _len3 - 1 : 0), _key3 = 1; _key3 < _len3; _key3++) {
         args[_key3 - 1] = arguments[_key3];
       }
 
@@ -51855,10 +55083,10 @@ var Formio = function () {
         var plugin = Formio.plugins[index];
 
         if (!plugin) {
-          return _nativePromiseOnly2.default.resolve(null);
+          return _nativePromiseOnly.default.resolve(null);
         }
 
-        return _nativePromiseOnly2.default.resolve((_ref2 = plugin[pluginFn] || Formio.noop).call.apply(_ref2, [plugin].concat(args))).then(function (result) {
+        return _nativePromiseOnly.default.resolve((_ref2 = plugin[pluginFn] || Formio.noop).call.apply(_ref2, [plugin].concat(args))).then(function (result) {
           if (!isNil(result)) {
             return result;
           }
@@ -51866,53 +55094,58 @@ var Formio = function () {
           return callPlugin(index + 1);
         });
       };
+
       return callPlugin(0);
     }
   }, {
-    key: 'pluginAlter',
+    key: "pluginAlter",
     value: function pluginAlter(pluginFn, value) {
-      for (var _len4 = arguments.length, args = Array(_len4 > 2 ? _len4 - 2 : 0), _key4 = 2; _key4 < _len4; _key4++) {
+      for (var _len4 = arguments.length, args = new Array(_len4 > 2 ? _len4 - 2 : 0), _key4 = 2; _key4 < _len4; _key4++) {
         args[_key4 - 2] = arguments[_key4];
       }
 
       return Formio.plugins.reduce(function (value, plugin) {
-        return (plugin[pluginFn] || Formio.identity).apply(undefined, [value].concat(args));
+        return (plugin[pluginFn] || Formio.identity).apply(void 0, [value].concat(args));
       }, value);
     }
   }, {
-    key: 'accessInfo',
+    key: "accessInfo",
     value: function accessInfo(formio) {
       var projectUrl = formio ? formio.projectUrl : Formio.projectUrl;
-      return Formio.makeRequest(formio, 'accessInfo', projectUrl + '/access');
+      return Formio.makeRequest(formio, 'accessInfo', "".concat(projectUrl, "/access"));
     }
   }, {
-    key: 'currentUser',
+    key: "currentUser",
     value: function currentUser(formio, options) {
       var projectUrl = formio ? formio.projectUrl : Formio.projectUrl || Formio.baseUrl;
       projectUrl += '/current';
-      var user = this.getUser(options);
+      var user = Formio.getUser(options);
+
       if (user) {
-        return Formio.pluginAlter('wrapStaticRequestPromise', _nativePromiseOnly2.default.resolve(user), {
+        return Formio.pluginAlter('wrapStaticRequestPromise', _nativePromiseOnly.default.resolve(user), {
           url: projectUrl,
           method: 'GET',
           options: options
         });
       }
+
       var token = Formio.getToken(options);
+
       if ((!options || !options.external) && !token) {
-        return Formio.pluginAlter('wrapStaticRequestPromise', _nativePromiseOnly2.default.resolve(null), {
+        return Formio.pluginAlter('wrapStaticRequestPromise', _nativePromiseOnly.default.resolve(null), {
           url: projectUrl,
           method: 'GET',
           options: options
         });
       }
+
       return Formio.makeRequest(formio, 'currentUser', projectUrl, 'GET', null, options).then(function (response) {
         Formio.setUser(response, options);
         return response;
       });
     }
   }, {
-    key: 'logout',
+    key: "logout",
     value: function logout(formio, options) {
       options = options || {};
       options.formio = formio;
@@ -51920,36 +55153,97 @@ var Formio = function () {
       Formio.setUser(null, options);
       Formio.clearCache();
       var projectUrl = formio ? formio.projectUrl : Formio.baseUrl;
-      return Formio.makeRequest(formio, 'logout', projectUrl + '/logout');
+      return Formio.makeRequest(formio, 'logout', "".concat(projectUrl, "/logout"));
     }
   }, {
-    key: 'oAuthCurrentUser',
+    key: "pageQuery",
+    value: function pageQuery() {
+      if (Formio._pageQuery) {
+        return Formio._pageQuery;
+      }
+
+      Formio._pageQuery = {};
+      Formio._pageQuery.paths = [];
+      var hashes = location.hash.substr(1).replace(/\?/g, '&').split('&');
+      var parts = [];
+      location.search.substr(1).split('&').forEach(function (item) {
+        parts = item.split('=');
+
+        if (parts.length > 1) {
+          Formio._pageQuery[parts[0]] = parts[1] && decodeURIComponent(parts[1]);
+        }
+      });
+      hashes.forEach(function (item) {
+        parts = item.split('=');
+
+        if (parts.length > 1) {
+          Formio._pageQuery[parts[0]] = parts[1] && decodeURIComponent(parts[1]);
+        } else if (item.indexOf('/') === 0) {
+          Formio._pageQuery.paths = item.substr(1).split('/');
+        }
+      });
+      return Formio._pageQuery;
+    }
+  }, {
+    key: "oAuthCurrentUser",
     value: function oAuthCurrentUser(formio, token) {
       return Formio.currentUser(formio, {
         external: true,
         headers: {
-          Authorization: 'Bearer ' + token
+          Authorization: "Bearer ".concat(token)
         }
       });
     }
   }, {
-    key: 'oktaInit',
+    key: "samlInit",
+    value: function samlInit(options) {
+      options = options || {};
+      var query = Formio.pageQuery();
+
+      if (query.saml) {
+        Formio.setUser(null);
+        var retVal = Formio.setToken(query.saml);
+        var uri = window.location.toString();
+        uri = uri.substring(0, uri.indexOf('?'));
+        window.history.replaceState({}, document.title, uri);
+        return retVal;
+      } // Only continue if we are not authenticated.
+
+
+      if (Formio.getToken()) {
+        return false;
+      } // Set the relay if not provided.
+
+
+      if (!options.relay) {
+        options.relay = window.location.href;
+      } // go to the saml sso endpoint for this project.
+
+
+      window.location.href = "".concat(Formio.projectUrl, "/saml/sso?relay=").concat(encodeURI(options.relay));
+      return false;
+    }
+  }, {
+    key: "oktaInit",
     value: function oktaInit(options) {
       options = options || {};
-      if ((typeof OktaAuth === 'undefined' ? 'undefined' : _typeof(OktaAuth)) !== undefined) {
+
+      if ((typeof OktaAuth === "undefined" ? "undefined" : _typeof(OktaAuth)) !== undefined) {
         options.OktaAuth = OktaAuth;
       }
 
       if (_typeof(options.OktaAuth) === undefined) {
         var errorMessage = 'Cannot find OktaAuth. Please include the Okta JavaScript SDK within your application. See https://developer.okta.com/code/javascript/okta_auth_sdk for an example.';
         console.warn(errorMessage);
-        return _nativePromiseOnly2.default.reject(errorMessage);
+        return _nativePromiseOnly.default.reject(errorMessage);
       }
-      return new _nativePromiseOnly2.default(function (resolve, reject) {
+
+      return new _nativePromiseOnly.default(function (resolve, reject) {
         var Okta = options.OktaAuth;
         delete options.OktaAuth;
         var authClient = new Okta(options);
         var accessToken = authClient.tokenManager.get('accessToken');
+
         if (accessToken) {
           resolve(Formio.oAuthCurrentUser(options.formio, accessToken.accessToken));
         } else if (location.hash) {
@@ -51970,36 +55264,40 @@ var Formio = function () {
       });
     }
   }, {
-    key: 'ssoInit',
+    key: "ssoInit",
     value: function ssoInit(type, options) {
       switch (type) {
+        case 'saml':
+          return Formio.samlInit(options);
+
         case 'okta':
           return Formio.oktaInit(options);
+
         default:
           console.warn('Unknown SSO type');
-          return _nativePromiseOnly2.default.reject('Unknown SSO type');
+          return _nativePromiseOnly.default.reject('Unknown SSO type');
       }
     }
   }, {
-    key: 'requireLibrary',
+    key: "requireLibrary",
     value: function requireLibrary(name, property, src, polling) {
       if (!Formio.libraries.hasOwnProperty(name)) {
         Formio.libraries[name] = {};
-        Formio.libraries[name].ready = new _nativePromiseOnly2.default(function (resolve, reject) {
+        Formio.libraries[name].ready = new _nativePromiseOnly.default(function (resolve, reject) {
           Formio.libraries[name].resolve = resolve;
           Formio.libraries[name].reject = reject;
         });
-
-        var callbackName = name + 'Callback';
+        var callbackName = "".concat(name, "Callback");
 
         if (!polling && !window[callbackName]) {
           window[callbackName] = function () {
             return Formio.libraries[name].resolve();
           };
-        }
+        } // See if the plugin already exists.
 
-        // See if the plugin already exists.
-        var plugin = (0, _get3.default)(window, property);
+
+        var plugin = (0, _get2.default)(window, property);
+
         if (plugin) {
           Formio.libraries[name].resolve(plugin);
         } else {
@@ -52007,12 +55305,14 @@ var Formio = function () {
           src.forEach(function (lib) {
             var attrs = {};
             var elementType = '';
+
             if (typeof lib === 'string') {
               lib = {
                 type: 'script',
                 src: lib
               };
             }
+
             switch (lib.type) {
               case 'script':
                 elementType = 'script';
@@ -52023,6 +55323,7 @@ var Formio = function () {
                   async: true
                 };
                 break;
+
               case 'styles':
                 elementType = 'link';
                 attrs = {
@@ -52030,20 +55331,22 @@ var Formio = function () {
                   rel: 'stylesheet'
                 };
                 break;
-            }
+            } // Add the script to the top page.
 
-            // Add the script to the top page.
+
             var script = document.createElement(elementType);
+
             for (var attr in attrs) {
               script.setAttribute(attr, attrs[attr]);
             }
-            document.getElementsByTagName('head')[0].appendChild(script);
-          });
 
-          // if no callback is provided, then check periodically for the script.
+            document.getElementsByTagName('head')[0].appendChild(script);
+          }); // if no callback is provided, then check periodically for the script.
+
           if (polling) {
             var interval = setInterval(function () {
-              var plugin = (0, _get3.default)(window, property);
+              var plugin = (0, _get2.default)(window, property);
+
               if (plugin) {
                 clearInterval(interval);
                 Formio.libraries[name].resolve(plugin);
@@ -52052,28 +55355,27 @@ var Formio = function () {
           }
         }
       }
+
       return Formio.libraries[name].ready;
     }
   }, {
-    key: 'libraryReady',
+    key: "libraryReady",
     value: function libraryReady(name) {
       if (Formio.libraries.hasOwnProperty(name) && Formio.libraries[name].ready) {
         return Formio.libraries[name].ready;
       }
 
-      return _nativePromiseOnly2.default.reject(name + ' library was not required.');
+      return _nativePromiseOnly.default.reject("".concat(name, " library was not required."));
     }
   }, {
-    key: 'token',
+    key: "token",
     get: function get() {
       if (!Formio.tokens) {
         Formio.tokens = {};
       }
 
       return Formio.tokens.formioToken ? Formio.tokens.formioToken : '';
-    }
-
-    // Needed to maintain reverse compatability...
+    } // Needed to maintain reverse compatability...
     ,
     set: function set(token) {
       if (!Formio.tokens) {
@@ -52085,55 +55387,99 @@ var Formio = function () {
   }]);
 
   return Formio;
-}();
-
-// Define all the static properties.
+}(); // Define all the static properties.
 
 
 exports.default = Formio;
 Formio.libraries = {};
-Formio.Promise = _nativePromiseOnly2.default;
-Formio.Headers = Headers;
+Formio.Promise = _nativePromiseOnly.default;
+
+if (typeof Headers !== 'undefined') {
+  Formio.Headers = Headers;
+} else {
+  Formio.Headers = {};
+}
+
 Formio.baseUrl = 'https://api.form.io';
 Formio.projectUrl = Formio.baseUrl;
 Formio.projectUrlSet = false;
 Formio.plugins = [];
 Formio.cache = {};
 Formio.providers = providers;
-Formio.events = new _eventemitter.EventEmitter2({
+Formio.events = new _EventEmitter.default({
   wildcard: false,
   maxListeners: 0
 });
 
-if ((typeof global === 'undefined' ? 'undefined' : _typeof(global)) === 'object' && !global.Formio) {
+if ((typeof global === "undefined" ? "undefined" : _typeof(global)) === 'object' && !global.Formio) {
   global.Formio = Formio;
 }
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./providers":27,"browser-cookies":24,"eventemitter2":25,"lodash/get":198,"native-promise-only":237,"shallow-copy":242,"whatwg-fetch":248}],27:[function(_dereq_,module,exports){
-'use strict';
+},{"./EventEmitter":133,"./providers":135,"browser-cookies":25,"core-js/modules/es6.array.iterator":106,"core-js/modules/es6.function.name":107,"core-js/modules/es6.number.constructor":108,"core-js/modules/es6.object.assign":109,"core-js/modules/es6.regexp.constructor":113,"core-js/modules/es6.regexp.match":115,"core-js/modules/es6.regexp.replace":116,"core-js/modules/es6.regexp.search":117,"core-js/modules/es6.regexp.split":118,"core-js/modules/es6.regexp.to-string":119,"core-js/modules/es6.string.includes":120,"core-js/modules/es6.string.iterator":121,"core-js/modules/es6.symbol":122,"core-js/modules/es7.array.includes":123,"core-js/modules/es7.symbol.async-iterator":124,"core-js/modules/web.dom.iterable":125,"lodash/cloneDeep":315,"lodash/get":320,"native-promise-only":366,"shallow-copy":371,"whatwg-fetch":378}],135:[function(_dereq_,module,exports){
+"use strict";
 
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-exports.storage = undefined;
+Object.defineProperty(exports, "storage", {
+  enumerable: true,
+  get: function get() {
+    return _storage2.default;
+  }
+});
 
-var _storage2 = _dereq_('./storage');
+var _storage2 = _interopRequireDefault(_dereq_("./storage"));
 
-var _storage3 = _interopRequireDefault(_storage2);
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+},{"./storage":139}],136:[function(_dereq_,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = void 0;
+
+_dereq_("core-js/modules/es6.function.name");
+
+var _xhr = _interopRequireDefault(_dereq_("./xhr"));
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-exports.storage = _storage3.default;
-},{"./storage":30}],28:[function(_dereq_,module,exports){
-'use strict';
+var azure = function azure(formio) {
+  return {
+    uploadFile: function uploadFile(file, fileName, dir, progressCallback) {
+      return _xhr.default.upload(formio, 'azure', function (xhr, response) {
+        xhr.open('PUT', response.url);
+        xhr.setRequestHeader('Content-Type', file.type);
+        xhr.setRequestHeader('x-ms-blob-type', 'BlockBlob');
+        return file;
+      }, file, fileName, dir, progressCallback).then(function () {
+        return {
+          storage: 'azure',
+          name: _xhr.default.path([dir, fileName]),
+          size: file.size,
+          type: file.type
+        };
+      });
+    },
+    downloadFile: function downloadFile(file) {
+      return formio.makeRequest('file', "".concat(formio.formUrl, "/storage/azure?name=").concat(_xhr.default.trim(file.name)), 'GET');
+    }
+  };
+};
+
+azure.title = 'Azure File Services';
+var _default = azure;
+exports.default = _default;
+},{"./xhr":142,"core-js/modules/es6.function.name":107}],137:[function(_dereq_,module,exports){
+"use strict";
 
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
+exports.default = void 0;
 
-var _nativePromiseOnly = _dereq_('native-promise-only');
-
-var _nativePromiseOnly2 = _interopRequireDefault(_nativePromiseOnly);
+var _nativePromiseOnly = _interopRequireDefault(_dereq_("native-promise-only"));
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -52145,8 +55491,7 @@ var base64 = function base64() {
       var _this = this;
 
       var reader = new FileReader();
-
-      return new _nativePromiseOnly2.default(function (resolve, reject) {
+      return new _nativePromiseOnly.default(function (resolve, reject) {
         reader.onload = function (event) {
           var url = event.target.result;
           resolve({
@@ -52154,8 +55499,7 @@ var base64 = function base64() {
             name: fileName,
             url: url,
             size: file.size,
-            type: file.type,
-            data: url.replace('data:' + file.type + ';base64,', '')
+            type: file.type
           });
         };
 
@@ -52168,30 +55512,30 @@ var base64 = function base64() {
     },
     downloadFile: function downloadFile(file) {
       // Return the original as there is nothing to do.
-      return _nativePromiseOnly2.default.resolve(file);
+      return _nativePromiseOnly.default.resolve(file);
     }
   };
 };
 
 base64.title = 'Base64';
-exports.default = base64;
-},{"native-promise-only":237}],29:[function(_dereq_,module,exports){
-'use strict';
+var _default = base64;
+exports.default = _default;
+},{"native-promise-only":366}],138:[function(_dereq_,module,exports){
+"use strict";
 
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
+exports.default = void 0;
 
-var _nativePromiseOnly = _dereq_('native-promise-only');
-
-var _nativePromiseOnly2 = _interopRequireDefault(_nativePromiseOnly);
+var _nativePromiseOnly = _interopRequireDefault(_dereq_("native-promise-only"));
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 var dropbox = function dropbox(formio) {
   return {
     uploadFile: function uploadFile(file, fileName, dir, progressCallback) {
-      return new _nativePromiseOnly2.default(function (resolve, reject) {
+      return new _nativePromiseOnly.default(function (resolve, reject) {
         // Send the file with data.
         var xhr = new XMLHttpRequest();
 
@@ -52202,9 +55546,8 @@ var dropbox = function dropbox(formio) {
         var fd = new FormData();
         fd.append('name', fileName);
         fd.append('dir', dir);
-        fd.append('file', file);
+        fd.append('file', file); // Fire on network error.
 
-        // Fire on network error.
         xhr.onerror = function (err) {
           err.networkError = true;
           reject(err);
@@ -52224,547 +55567,440 @@ var dropbox = function dropbox(formio) {
         };
 
         xhr.onabort = reject;
-
-        xhr.open('POST', formio.formUrl + '/storage/dropbox');
+        xhr.open('POST', "".concat(formio.formUrl, "/storage/dropbox"));
         var token = formio.getToken();
+
         if (token) {
           xhr.setRequestHeader('x-jwt-token', token);
         }
+
         xhr.send(fd);
       });
     },
     downloadFile: function downloadFile(file) {
       var token = formio.getToken();
-      file.url = formio.formUrl + '/storage/dropbox?path_lower=' + file.path_lower + (token ? '&x-jwt-token=' + token : '');
-      return _nativePromiseOnly2.default.resolve(file);
+      file.url = "".concat(formio.formUrl, "/storage/dropbox?path_lower=").concat(file.path_lower).concat(token ? "&x-jwt-token=".concat(token) : '');
+      return _nativePromiseOnly.default.resolve(file);
     }
   };
 };
 
 dropbox.title = 'Dropbox';
-exports.default = dropbox;
-},{"native-promise-only":237}],30:[function(_dereq_,module,exports){
-'use strict';
+var _default = dropbox;
+exports.default = _default;
+},{"native-promise-only":366}],139:[function(_dereq_,module,exports){
+"use strict";
 
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
+exports.default = void 0;
 
-var _base = _dereq_('./base64');
+var _base = _interopRequireDefault(_dereq_("./base64"));
 
-var _base2 = _interopRequireDefault(_base);
+var _dropbox = _interopRequireDefault(_dereq_("./dropbox"));
 
-var _dropbox = _dereq_('./dropbox');
+var _s = _interopRequireDefault(_dereq_("./s3"));
 
-var _dropbox2 = _interopRequireDefault(_dropbox);
+var _azure = _interopRequireDefault(_dereq_("./azure"));
 
-var _s = _dereq_('./s3');
-
-var _s2 = _interopRequireDefault(_s);
-
-var _url = _dereq_('./url');
-
-var _url2 = _interopRequireDefault(_url);
+var _url = _interopRequireDefault(_dereq_("./url"));
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-exports.default = {
-  base64: _base2.default,
-  dropbox: _dropbox2.default,
-  s3: _s2.default,
-  url: _url2.default
+var _default = {
+  base64: _base.default,
+  dropbox: _dropbox.default,
+  s3: _s.default,
+  url: _url.default,
+  azure: _azure.default
 };
-},{"./base64":28,"./dropbox":29,"./s3":31,"./url":32}],31:[function(_dereq_,module,exports){
-'use strict';
+exports.default = _default;
+},{"./azure":136,"./base64":137,"./dropbox":138,"./s3":140,"./url":141}],140:[function(_dereq_,module,exports){
+"use strict";
 
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
+exports.default = void 0;
 
-var _nativePromiseOnly = _dereq_('native-promise-only');
+var _nativePromiseOnly = _interopRequireDefault(_dereq_("native-promise-only"));
 
-var _nativePromiseOnly2 = _interopRequireDefault(_nativePromiseOnly);
-
-var _trim2 = _dereq_('lodash/trim');
-
-var _trim3 = _interopRequireDefault(_trim2);
+var _xhr = _interopRequireDefault(_dereq_("./xhr"));
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-var trim = function trim(text) {
-  return (0, _trim3.default)(text, '/');
-};
-var path = function path(items) {
-  return items.filter(function (item) {
-    return !!item;
-  }).map(trim).join('/');
-};
 var s3 = function s3(formio) {
   return {
     uploadFile: function uploadFile(file, fileName, dir, progressCallback) {
-      return new _nativePromiseOnly2.default(function (resolve, reject) {
-        // Send the pre response to sign the upload.
-        var pre = new XMLHttpRequest();
+      return _xhr.default.upload(formio, 's3', function (xhr, response) {
+        response.data.fileName = fileName;
+        response.data.key = _xhr.default.path([response.data.key, dir, fileName]);
 
-        // This only fires on a network error.
-        pre.onerror = function (err) {
-          err.networkError = true;
-          reject(err);
-        };
+        if (response.signed) {
+          xhr.open('PUT', response.signed);
+          xhr.setRequestHeader('Content-Type', file.type);
+          return file;
+        } else {
+          var fd = new FormData();
 
-        pre.onabort = reject;
-
-        pre.onload = function () {
-          if (pre.status >= 200 && pre.status < 300) {
-            var response = JSON.parse(pre.response);
-
-            // Send the file with data.
-            var xhr = new XMLHttpRequest();
-
-            if (typeof progressCallback === 'function') {
-              xhr.upload.onprogress = progressCallback;
-            }
-
-            response.data.fileName = fileName;
-            response.data.key = path([response.data.key, dir, fileName]);
-
-            // Fire on network error.
-            xhr.onerror = function (err) {
-              err.networkError = true;
-              reject(err);
-            };
-
-            xhr.onload = function () {
-              if (xhr.status >= 200 && xhr.status < 300) {
-                resolve({
-                  storage: 's3',
-                  name: fileName,
-                  bucket: response.bucket,
-                  key: response.data.key,
-                  url: path([response.url, response.data.key]),
-                  acl: response.data.acl,
-                  size: file.size,
-                  type: file.type
-                });
-              } else {
-                reject(xhr.response || 'Unable to upload file');
-              }
-            };
-
-            xhr.onabort = reject;
-            if (response.signed) {
-              xhr.open('PUT', response.signed);
-              xhr.setRequestHeader('Content-Type', file.type);
-              xhr.send(file);
-            } else {
-              var fd = new FormData();
-              for (var key in response.data) {
-                fd.append(key, response.data[key]);
-              }
-              fd.append('file', file);
-              xhr.open('POST', response.url);
-              xhr.send(fd);
-            }
-          } else {
-            reject(pre.response || 'Unable to sign file');
+          for (var key in response.data) {
+            fd.append(key, response.data[key]);
           }
-        };
 
-        pre.open('POST', formio.formUrl + '/storage/s3');
-
-        pre.setRequestHeader('Accept', 'application/json');
-        pre.setRequestHeader('Content-Type', 'application/json; charset=UTF-8');
-        var token = formio.getToken();
-        if (token) {
-          pre.setRequestHeader('x-jwt-token', token);
+          fd.append('file', file);
+          xhr.open('POST', response.url);
+          return fd;
         }
-
-        pre.send(JSON.stringify({
-          name: path([dir, fileName]),
+      }, file, fileName, dir, progressCallback).then(function (response) {
+        return {
+          storage: 's3',
+          name: fileName,
+          bucket: response.bucket,
+          key: response.data.key,
+          url: _xhr.default.path([response.url, response.data.key]),
+          acl: response.data.acl,
           size: file.size,
           type: file.type
-        }));
+        };
       });
     },
     downloadFile: function downloadFile(file) {
       if (file.acl !== 'public-read') {
-        return formio.makeRequest('file', formio.formUrl + '/storage/s3?bucket=' + trim(file.bucket) + '&key=' + trim(file.key), 'GET');
+        return formio.makeRequest('file', "".concat(formio.formUrl, "/storage/s3?bucket=").concat(_xhr.default.trim(file.bucket), "&key=").concat(_xhr.default.trim(file.key)), 'GET');
       } else {
-        return _nativePromiseOnly2.default.resolve(file);
+        return _nativePromiseOnly.default.resolve(file);
       }
     }
   };
 };
 
 s3.title = 'S3';
-exports.default = s3;
-},{"lodash/trim":234,"native-promise-only":237}],32:[function(_dereq_,module,exports){
-'use strict';
+var _default = s3;
+exports.default = _default;
+},{"./xhr":142,"native-promise-only":366}],141:[function(_dereq_,module,exports){
+"use strict";
 
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
+exports.default = void 0;
 
-var _nativePromiseOnly = _dereq_('native-promise-only');
+_dereq_("core-js/modules/es6.function.name");
 
-var _nativePromiseOnly2 = _interopRequireDefault(_nativePromiseOnly);
+var _nativePromiseOnly = _interopRequireDefault(_dereq_("native-promise-only"));
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 var url = function url(formio) {
-  return {
-    title: 'Url',
-    name: 'url',
-    uploadFile: function uploadFile(file, fileName, dir, progressCallback, url) {
-      return new _nativePromiseOnly2.default(function (resolve, reject) {
-        var data = {
-          dir: dir,
-          file: file,
-          name: fileName
-        };
+  var xhrRequest = function xhrRequest(url, name, query, data, options, onprogress) {
+    return new _nativePromiseOnly.default(function (resolve, reject) {
+      var xhr = new XMLHttpRequest();
+      var json = typeof data === 'string';
+      var fd = new FormData();
 
-        // Send the file with data.
-        var xhr = new XMLHttpRequest();
+      if (typeof onprogress === 'function') {
+        xhr.upload.onprogress = onprogress;
+      }
 
-        if (typeof progressCallback === 'function') {
-          xhr.upload.onprogress = progressCallback;
-        }
-
-        var fd = new FormData();
+      if (!json) {
         for (var key in data) {
           fd.append(key, data[key]);
         }
+      }
 
-        xhr.onload = function () {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            // Need to test if xhr.response is decoded or not.
-            var respData = {};
-            try {
-              respData = typeof xhr.response === 'string' ? JSON.parse(xhr.response) : {};
-              respData = respData && respData.data ? respData.data : respData;
-            } catch (err) {
-              respData = {};
-            }
+      xhr.onload = function () {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          // Need to test if xhr.response is decoded or not.
+          var respData = {};
 
-            var _url = respData.hasOwnProperty('url') ? respData.url : xhr.responseURL + '/' + fileName;
-            resolve({
-              storage: 'url',
-              name: fileName,
-              url: _url,
-              size: file.size,
-              type: file.type,
-              data: respData
-            });
-          } else {
-            reject(xhr.response || 'Unable to upload file');
+          try {
+            respData = typeof xhr.response === 'string' ? JSON.parse(xhr.response) : {};
+            respData = respData && respData.data ? respData.data : respData;
+          } catch (err) {
+            respData = {};
+          } // Get the url of the file.
+
+
+          var respUrl = respData.hasOwnProperty('url') ? respData.url : "".concat(xhr.responseURL, "/").concat(name); // If they provide relative url, then prepend the url.
+
+          if (respUrl && respUrl[0] === '/') {
+            respUrl = "".concat(url).concat(respUrl);
           }
-        };
 
-        // Fire on network error.
-        xhr.onerror = function () {
-          return reject(xhr);
-        };
-
-        xhr.onabort = function () {
-          return reject(xhr);
-        };
-
-        xhr.open('POST', url);
-        var token = formio.getToken();
-        if (token) {
-          xhr.setRequestHeader('x-jwt-token', token);
+          resolve({
+            url: respUrl,
+            data: respData
+          });
+        } else {
+          reject(xhr.response || 'Unable to upload file');
         }
-        xhr.send(fd);
-      });
+      };
+
+      xhr.onerror = function () {
+        return reject(xhr);
+      };
+
+      xhr.onabort = function () {
+        return reject(xhr);
+      };
+
+      var requestUrl = url + (url.indexOf('?') > -1 ? '&' : '?');
+
+      for (var _key in query) {
+        requestUrl += "".concat(_key, "=").concat(query[_key], "&");
+      }
+
+      if (requestUrl[requestUrl.length - 1] === '&') {
+        requestUrl = requestUrl.substr(0, requestUrl.length - 1);
+      }
+
+      xhr.open('POST', requestUrl);
+
+      if (json) {
+        xhr.setRequestHeader('Content-Type', 'application/json');
+      }
+
+      var token = formio.getToken();
+
+      if (token) {
+        xhr.setRequestHeader('x-jwt-token', token);
+      } //Overrides previous request props
+
+
+      if (options) {
+        var parsedOptions = JSON.parse(options);
+
+        for (var prop in parsedOptions) {
+          xhr[prop] = parsedOptions[prop];
+        }
+      }
+
+      xhr.send(json ? data : fd);
+    });
+  };
+
+  return {
+    title: 'Url',
+    name: 'url',
+    uploadFile: function uploadFile(file, name, dir, progressCallback, url, options) {
+      var uploadRequest = function uploadRequest(form) {
+        return xhrRequest(url, name, {
+          baseUrl: encodeURIComponent(formio.projectUrl),
+          project: form ? form.project : '',
+          form: form ? form._id : ''
+        }, {
+          file: file,
+          name: name,
+          dir: dir
+        }, options, progressCallback).then(function (response) {
+          // Store the project and form url along with the metadata.
+          response.data = response.data || {};
+          response.data.baseUrl = formio.projectUrl;
+          response.data.project = form ? form.project : '';
+          response.data.form = form ? form._id : '';
+          return {
+            storage: 'url',
+            name: name,
+            url: response.url,
+            size: file.size,
+            type: file.type,
+            data: response.data
+          };
+        });
+      };
+
+      if (file.private && formio.formId) {
+        return formio.loadForm().then(function (form) {
+          return uploadRequest(form);
+        });
+      } else {
+        return uploadRequest();
+      }
     },
     downloadFile: function downloadFile(file) {
-      // Return the original as there is nothing to do.
-      return _nativePromiseOnly2.default.resolve(file);
+      if (file.private) {
+        if (formio.submissionId && file.data) {
+          file.data.submission = formio.submissionId;
+        }
+
+        return xhrRequest(file.url, file.name, {}, JSON.stringify(file)).then(function (response) {
+          return response.data;
+        });
+      } // Return the original as there is nothing to do.
+
+
+      return _nativePromiseOnly.default.resolve(file);
     }
   };
 };
 
 url.title = 'Url';
-exports.default = url;
-},{"native-promise-only":237}],33:[function(_dereq_,module,exports){
-(function (global){
-'use strict';
+var _default = url;
+exports.default = _default;
+},{"core-js/modules/es6.function.name":107,"native-promise-only":366}],142:[function(_dereq_,module,exports){
+"use strict";
 
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
+exports.default = void 0;
 
-var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
+var _nativePromiseOnly = _interopRequireDefault(_dereq_("native-promise-only"));
 
-var _utils = _dereq_('./utils');
+var _trim2 = _interopRequireDefault(_dereq_("lodash/trim"));
 
-var FormioUtils = _interopRequireWildcard(_utils);
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-function _interopRequireWildcard(obj) { if (obj && obj.__esModule) { return obj; } else { var newObj = {}; if (obj != null) { for (var key in obj) { if (Object.prototype.hasOwnProperty.call(obj, key)) newObj[key] = obj[key]; } } newObj.default = obj; return newObj; } }
+var XHR = {
+  trim: function trim(text) {
+    return (0, _trim2.default)(text, '/');
+  },
+  path: function path(items) {
+    return items.filter(function (item) {
+      return !!item;
+    }).map(XHR.trim).join('/');
+  },
+  upload: function upload(formio, type, xhrCb, file, fileName, dir, progressCallback) {
+    return new _nativePromiseOnly.default(function (resolve, reject) {
+      // Send the pre response to sign the upload.
+      var pre = new XMLHttpRequest(); // This only fires on a network error.
 
-if ((typeof global === 'undefined' ? 'undefined' : _typeof(global)) === 'object') {
-  global.FormioUtils = FormioUtils;
-}
-exports.default = FormioUtils;
-}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./utils":35}],34:[function(_dereq_,module,exports){
-'use strict';
+      pre.onerror = function (err) {
+        err.networkError = true;
+        reject(err);
+      };
+
+      pre.onabort = reject;
+
+      pre.onload = function () {
+        if (pre.status >= 200 && pre.status < 300) {
+          var response = JSON.parse(pre.response); // Send the file with data.
+
+          var xhr = new XMLHttpRequest();
+
+          if (typeof progressCallback === 'function') {
+            xhr.upload.onprogress = progressCallback;
+          } // Fire on network error.
+
+
+          xhr.onerror = function (err) {
+            err.networkError = true;
+            reject(err);
+          }; // Fire on network abort.
+
+
+          xhr.onabort = function (err) {
+            err.networkError = true;
+            reject(err);
+          }; // Fired when the response has made it back from the server.
+
+
+          xhr.onload = function () {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              resolve(response);
+            } else {
+              reject(xhr.response || 'Unable to upload file');
+            }
+          }; // Set the onabort error callback.
+
+
+          xhr.onabort = reject; // Get the request and send it to the server.
+
+          xhr.send(xhrCb(xhr, response));
+        } else {
+          reject(pre.response || 'Unable to sign file');
+        }
+      };
+
+      pre.open('POST', "".concat(formio.formUrl, "/storage/").concat(type));
+      pre.setRequestHeader('Accept', 'application/json');
+      pre.setRequestHeader('Content-Type', 'application/json; charset=UTF-8');
+      var token = formio.getToken();
+
+      if (token) {
+        pre.setRequestHeader('x-jwt-token', token);
+      }
+
+      pre.send(JSON.stringify({
+        name: XHR.path([dir, fileName]),
+        size: file.size,
+        type: file.type
+      }));
+    });
+  }
+};
+var _default = XHR;
+exports.default = _default;
+},{"lodash/trim":363,"native-promise-only":366}],143:[function(_dereq_,module,exports){
+"use strict";
 
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-// Use only immutable useful functions from Lodash.
-// Visit https://lodash.com/docs for more info.
-var lodashOperators = exports.lodashOperators = [
-// Array
-'chunk', 'compact', 'concat', 'difference', 'differenceBy', 'differenceWith', 'drop', 'dropRight', 'dropRightWhile', 'dropWhile', 'findIndex', 'findLastIndex', 'first', 'flatten', 'flattenDeep', 'flattenDepth', 'fromPairs', 'head', 'indexOf', 'initial', 'intersection', 'intersectionBy', 'intersectionWith', 'join', 'last', 'lastIndexOf', 'nth', 'slice', 'sortedIndex', 'sortedIndexBy', 'sortedIndexOf', 'sortedLastIndex', 'sortedLastIndexBy', 'sortedLastIndexOf', 'sortedUniq', 'sortedUniqBy', 'tail', 'take', 'takeRight', 'takeRightWhile', 'takeWhile', 'union', 'unionBy', 'unionWith', 'uniq', 'uniqBy', 'uniqWith', 'unzip', 'unzipWith', 'without', 'xor', 'xorBy', 'xorWith', 'zip', 'zipObject', 'zipObjectDeep', 'zipWith',
-// Collection
-'countBy', 'every', 'filter', 'find', 'findLast', 'flatMap', 'flatMapDeep', 'flatMapDepth', 'groupBy', 'includes', 'invokeMap', 'keyBy', 'map', 'orderBy', 'partition', 'reduce', 'reduceRight', 'reject', 'sample', 'sampleSize', 'shuffle', 'size', 'some', 'sortBy',
-// Date
-'now',
-// Function
-'flip', 'negate', 'overArgs', 'partial', 'partialRight', 'rearg', 'rest', 'spread',
-// Lang
-'castArray', 'clone', 'cloneDeep', 'cloneDeepWith', 'cloneDeep', 'conformsTo', 'eq', 'gt', 'gte', 'isArguments', 'isArray', 'isArrayBuffer', 'isArrayLike', 'isArrayLikeObject', 'isBoolean', 'isBuffer', 'isDate', 'isElement', 'isEmpty', 'isEqual', 'isEqualWith', 'isError', 'isFinite', 'isFunction', 'isInteger', 'isLength', 'isMap', 'isMatch', 'isMatchWith', 'isNaN', 'isNative', 'isNil', 'isNull', 'isNumber', 'isObject', 'isObjectLike', 'isPlainObject', 'isRegExp', 'isSafeInteger', 'isSet', 'isString', 'isSymbol', 'isTypedArray', 'isUndefined', 'isWeakMap', 'isWeakSet', 'lt', 'lte', 'toArray', 'toFinite', 'toInteger', 'toLength', 'toNumber', 'toPlainObject', 'toSafeInteger', 'toString',
-// Math
-'add', 'ceil', 'divide', 'floor', 'max', 'maxBy', 'mean', 'meanBy', 'min', 'minBy', 'multiply', 'round', 'subtract', 'sum', 'sumBy',
-// Number
-'clamp', 'inRange', 'random',
-// Object
-'at', 'entries', 'entriesIn', 'findKey', 'findLastKey', 'functions', 'functionsIn', 'get', 'has', 'hasIn', 'invert', 'invertBy', 'invoke', 'keys', 'keysIn', 'mapKeys', 'mapValues', 'omit', 'omitBy', 'pick', 'pickBy', 'result', 'toPairs', 'toPairsIn', 'transform', 'values', 'valuesIn',
-// String
-'camelCase', 'capitalize', 'deburr', 'endsWith', 'escape', 'escapeRegExp', 'kebabCase', 'lowerCase', 'lowerFirst', 'pad', 'padEnd', 'padStart', 'parseInt', 'repeat', 'replace', 'snakeCase', 'split', 'startCase', 'startsWith', 'toLower', 'toUpper', 'trim', 'trimEnd', 'trimStart', 'truncate', 'unescape', 'upperCase', 'upperFirst', 'words',
-// Util
-'cond', 'conforms', 'constant', 'defaultTo', 'flow', 'flowRight', 'identity', 'iteratee', 'matches', 'matchesProperty', 'method', 'methodOf', 'nthArg', 'over', 'overEvery', 'overSome', 'property', 'propertyOf', 'range', 'rangeRight', 'stubArray', 'stubFalse', 'stubObject', 'stubString', 'stubTrue', 'times', 'toPath', 'uniqueId'];
-},{}],35:[function(_dereq_,module,exports){
-'use strict';
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.jsonLogic = undefined;
-
-var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
-
-exports.evaluate = evaluate;
-exports.getRandomComponentId = getRandomComponentId;
-exports.getPropertyValue = getPropertyValue;
-exports.getElementRect = getElementRect;
-exports.boolValue = boolValue;
-exports.isMongoId = isMongoId;
 exports.isLayoutComponent = isLayoutComponent;
 exports.eachComponent = eachComponent;
 exports.matchComponent = matchComponent;
 exports.getComponent = getComponent;
+exports.searchComponents = searchComponents;
 exports.findComponents = findComponents;
+exports.findComponent = findComponent;
+exports.removeComponent = removeComponent;
+exports.generateFormChange = generateFormChange;
+exports.applyFormChanges = applyFormChanges;
 exports.flattenComponents = flattenComponents;
 exports.hasCondition = hasCondition;
 exports.parseFloatExt = parseFloatExt;
 exports.formatAsCurrency = formatAsCurrency;
 exports.escapeRegExCharacters = escapeRegExCharacters;
-exports.checkCalculated = checkCalculated;
-exports.checkSimpleConditional = checkSimpleConditional;
-exports.checkCustomConditional = checkCustomConditional;
-exports.checkJsonConditional = checkJsonConditional;
-exports.checkCondition = checkCondition;
-exports.checkTrigger = checkTrigger;
-exports.setActionProperty = setActionProperty;
 exports.getValue = getValue;
-exports.interpolate = interpolate;
-exports.uniqueName = uniqueName;
-exports.guid = guid;
-exports.getDateSetting = getDateSetting;
-exports.isValidDate = isValidDate;
-exports.currentTimezone = currentTimezone;
-exports.offsetDate = offsetDate;
-exports.loadZones = loadZones;
-exports.timezoneText = timezoneText;
-exports.formatDate = formatDate;
-exports.formatOffset = formatOffset;
-exports.getLocaleDateFormatInfo = getLocaleDateFormatInfo;
-exports.convertFormatToFlatpickr = convertFormatToFlatpickr;
-exports.convertFormatToMoment = convertFormatToMoment;
-exports.convertFormatToMask = convertFormatToMask;
-exports.getInputMask = getInputMask;
-exports.matchInputMask = matchInputMask;
-exports.getNumberSeparators = getNumberSeparators;
-exports.getNumberDecimalLimit = getNumberDecimalLimit;
-exports.getCurrencyAffixes = getCurrencyAffixes;
-exports.fieldData = fieldData;
-exports.delay = delay;
-exports.iterateKey = iterateKey;
-exports.uniqueKey = uniqueKey;
+exports.getStrings = getStrings;
 
-var _lodash = _dereq_('lodash');
+_dereq_("core-js/modules/es6.array.iterator");
 
-var _lodash2 = _interopRequireDefault(_lodash);
+_dereq_("core-js/modules/es6.string.iterator");
 
-_dereq_('whatwg-fetch');
+_dereq_("core-js/modules/es6.array.from");
 
-var _jsonLogicJs = _dereq_('json-logic-js');
+_dereq_("core-js/modules/es6.regexp.to-string");
 
-var _jsonLogicJs2 = _interopRequireDefault(_jsonLogicJs);
+_dereq_("core-js/modules/es6.regexp.split");
 
-var _momentTimezone = _dereq_('moment-timezone/moment-timezone');
+_dereq_("core-js/modules/es6.regexp.replace");
 
-var _momentTimezone2 = _interopRequireDefault(_momentTimezone);
+_dereq_("core-js/modules/es7.array.includes");
 
-var _jstimezonedetect = _dereq_('jstimezonedetect');
+_dereq_("core-js/modules/es6.string.includes");
 
-var _jstimezonedetect2 = _interopRequireDefault(_jstimezonedetect);
+_dereq_("core-js/modules/web.dom.iterable");
 
-var _operators = _dereq_('./jsonlogic/operators');
+var _get = _interopRequireDefault(_dereq_("lodash/get"));
 
-var _nativePromiseOnly = _dereq_('native-promise-only');
+var _set = _interopRequireDefault(_dereq_("lodash/set"));
 
-var _nativePromiseOnly2 = _interopRequireDefault(_nativePromiseOnly);
+var _has = _interopRequireDefault(_dereq_("lodash/has"));
+
+var _clone = _interopRequireDefault(_dereq_("lodash/clone"));
+
+var _forOwn = _interopRequireDefault(_dereq_("lodash/forOwn"));
+
+var _isString = _interopRequireDefault(_dereq_("lodash/isString"));
+
+var _isNaN = _interopRequireDefault(_dereq_("lodash/isNaN"));
+
+var _isNil = _interopRequireDefault(_dereq_("lodash/isNil"));
+
+var _isPlainObject = _interopRequireDefault(_dereq_("lodash/isPlainObject"));
+
+var _round = _interopRequireDefault(_dereq_("lodash/round"));
+
+var _chunk = _interopRequireDefault(_dereq_("lodash/chunk"));
+
+var _pad = _interopRequireDefault(_dereq_("lodash/pad"));
+
+var _fastJsonPatch = _interopRequireDefault(_dereq_("fast-json-patch"));
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-function _toConsumableArray(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) { arr2[i] = arr[i]; } return arr2; } else { return Array.from(arr); } }
-
-// Configure JsonLogic
-_operators.lodashOperators.forEach(function (name) {
-  return _jsonLogicJs2.default.add_operation('_' + name, _lodash2.default[name]);
-});
-
-// Retrieve Any Date
-_jsonLogicJs2.default.add_operation('getDate', function (date) {
-  return (0, _momentTimezone2.default)(date).toISOString();
-});
-
-// Set Relative Minimum Date
-_jsonLogicJs2.default.add_operation('relativeMinDate', function (relativeMinDate) {
-  return (0, _momentTimezone2.default)().subtract(relativeMinDate, 'days').toISOString();
-});
-
-// Set Relative Maximum Date
-_jsonLogicJs2.default.add_operation('relativeMaxDate', function (relativeMaxDate) {
-  return (0, _momentTimezone2.default)().add(relativeMaxDate, 'days').toISOString();
-});
-
-exports.jsonLogic = _jsonLogicJs2.default;
-
-/**
- * Evaluate a method.
- *
- * @param func
- * @param args
- * @return {*}
- */
-
-function evaluate(func, args, ret, tokenize) {
-  var returnVal = null;
-  var component = args.component ? args.component : { key: 'unknown' };
-  if (!args.form && args.instance) {
-    args.form = _lodash2.default.get(args.instance, 'root._form', {});
-  }
-  if (typeof func === 'string') {
-    if (ret) {
-      func += ';return ' + ret;
-    }
-    var params = _lodash2.default.keys(args);
-
-    if (tokenize) {
-      // Replace all {{ }} references with actual data.
-      func = func.replace(/({{\s+(.*)\s+}})/, function (match, $1, $2) {
-        if ($2.indexOf('data.') === 0) {
-          return _lodash2.default.get(args.data, $2.replace('data.', ''));
-        } else if ($2.indexOf('row.') === 0) {
-          return _lodash2.default.get(args.row, $2.replace('row.', ''));
-        }
-
-        // Support legacy...
-        return _lodash2.default.get(args.data, $2);
-      });
-    }
-
-    try {
-      func = new (Function.prototype.bind.apply(Function, [null].concat(_toConsumableArray(params), [func])))();
-      args = _lodash2.default.values(args);
-    } catch (err) {
-      console.warn('An error occured within the custom function for ' + component.key, err);
-      returnVal = null;
-      func = false;
-    }
-  }
-  if (typeof func === 'function') {
-    try {
-      returnVal = Array.isArray(args) ? func.apply(undefined, _toConsumableArray(args)) : func(args);
-    } catch (err) {
-      returnVal = null;
-      console.warn('An error occured within custom function for ' + component.key, err);
-    }
-  } else if ((typeof func === 'undefined' ? 'undefined' : _typeof(func)) === 'object') {
-    try {
-      returnVal = _jsonLogicJs2.default.apply(func, args);
-    } catch (err) {
-      returnVal = null;
-      console.warn('An error occured within custom function for ' + component.key, err);
-    }
-  } else if (func) {
-    console.warn('Unknown function type for ' + component.key);
-  }
-  return returnVal;
-}
-
-function getRandomComponentId() {
-  return 'e' + Math.random().toString(36).substring(7);
-}
-
-/**
- * Get a property value of an element.
- *
- * @param style
- * @param prop
- * @return {number}
- */
-function getPropertyValue(style, prop) {
-  var value = style.getPropertyValue(prop);
-  value = value ? value.replace(/[^0-9.]/g, '') : '0';
-  return parseFloat(value);
-}
-
-/**
- * Get an elements bounding rectagle.
- *
- * @param element
- * @return {{x: string, y: string, width: string, height: string}}
- */
-function getElementRect(element) {
-  var style = window.getComputedStyle(element, null);
-  return {
-    x: getPropertyValue(style, 'left'),
-    y: getPropertyValue(style, 'top'),
-    width: getPropertyValue(style, 'width'),
-    height: getPropertyValue(style, 'height')
-  };
-}
-
-/**
- * Determines the boolean value of a setting.
- *
- * @param value
- * @return {boolean}
- */
-function boolValue(value) {
-  if (_lodash2.default.isBoolean(value)) {
-    return value;
-  } else if (_lodash2.default.isString(value)) {
-    return value.toLowerCase() === 'true';
-  } else {
-    return !!value;
-  }
-}
-
-/**
- * Check to see if an ID is a mongoID.
- * @param text
- * @return {Array|{index: number, input: string}|Boolean|*}
- */
-function isMongoId(text) {
-  return text.toString().match(/^[0-9a-fA-F]{24}$/);
-}
 
 /**
  * Determine if a component is a layout component or not.
@@ -52778,7 +56014,6 @@ function isMongoId(text) {
 function isLayoutComponent(component) {
   return Boolean(component.columns && Array.isArray(component.columns) || component.rows && Array.isArray(component.rows) || component.components && Array.isArray(component.components));
 }
-
 /**
  * Iterate through each component within a form.
  *
@@ -52793,6 +56028,8 @@ function isLayoutComponent(component) {
  * @param {Object} parent
  *   The parent object.
  */
+
+
 function eachComponent(components, fn, includeAll, path, parent) {
   if (!components) return;
   path = path || '';
@@ -52800,16 +56037,16 @@ function eachComponent(components, fn, includeAll, path, parent) {
     if (!component) {
       return;
     }
+
     var hasColumns = component.columns && Array.isArray(component.columns);
     var hasRows = component.rows && Array.isArray(component.rows);
     var hasComps = component.components && Array.isArray(component.components);
     var noRecurse = false;
-    var newPath = component.key ? path ? path + '.' + component.key : component.key : '';
+    var newPath = component.key ? path ? "".concat(path, ".").concat(component.key) : component.key : ''; // Keep track of parent references.
 
-    // Keep track of parent references.
     if (parent) {
       // Ensure we don't create infinite JSON structures.
-      component.parent = _lodash2.default.clone(parent);
+      component.parent = (0, _clone.default)(parent);
       delete component.parent.components;
       delete component.parent.componentMap;
       delete component.parent.columns;
@@ -52821,11 +56058,12 @@ function eachComponent(components, fn, includeAll, path, parent) {
     }
 
     var subPath = function subPath() {
-      if (component.key && !(['panel', 'table', 'well', 'columns', 'fieldset', 'tabs', 'form'].indexOf(component.type) !== -1) && (['datagrid', 'container', 'editgrid'].indexOf(component.type) !== -1 || component.tree)) {
+      if (component.key && !['panel', 'table', 'well', 'columns', 'fieldset', 'tabs', 'form'].includes(component.type) && (['datagrid', 'container', 'editgrid'].includes(component.type) || component.tree)) {
         return newPath;
       } else if (component.key && component.type === 'form') {
-        return newPath + '.data';
+        return "".concat(newPath, ".data");
       }
+
       return path;
     };
 
@@ -52848,7 +56086,6 @@ function eachComponent(components, fn, includeAll, path, parent) {
     }
   });
 }
-
 /**
  * Matches if a component matches the query.
  *
@@ -52856,13 +56093,16 @@ function eachComponent(components, fn, includeAll, path, parent) {
  * @param query
  * @return {boolean}
  */
+
+
 function matchComponent(component, query) {
-  if (_lodash2.default.isString(query)) {
+  if ((0, _isString.default)(query)) {
     return component.key === query;
   } else {
     var matches = false;
-    _lodash2.default.forOwn(query, function (value, key) {
-      matches = _lodash2.default.get(component, key) === value;
+    (0, _forOwn.default)(query, function (value, key) {
+      matches = (0, _get.default)(component, key) === value;
+
       if (!matches) {
         return false;
       }
@@ -52870,7 +56110,6 @@ function matchComponent(component, query) {
     return matches;
   }
 }
-
 /**
  * Get a component by its key
  *
@@ -52882,8 +56121,10 @@ function matchComponent(component, query) {
  * @returns {Object}
  *   The component that matches the given key, or undefined if not found.
  */
+
+
 function getComponent(components, key, includeAll) {
-  var result = void 0;
+  var result;
   eachComponent(components, function (component, path) {
     if (path === key) {
       component.path = path;
@@ -52893,7 +56134,6 @@ function getComponent(components, key, includeAll) {
   }, includeAll);
   return result;
 }
-
 /**
  * Finds a component provided a query of properties of that component.
  *
@@ -52901,7 +56141,9 @@ function getComponent(components, key, includeAll) {
  * @param query
  * @return {*}
  */
-function findComponents(components, query) {
+
+
+function searchComponents(components, query) {
   var results = [];
   eachComponent(components, function (component, path) {
     if (matchComponent(component, query)) {
@@ -52911,7 +56153,196 @@ function findComponents(components, query) {
   }, true);
   return results;
 }
+/**
+ * Deprecated version of findComponents. Renamed to searchComponents.
+ *
+ * @param components
+ * @param query
+ * @returns {*}
+ */
 
+
+function findComponents(components, query) {
+  console.warn('formio.js/utils findComponents is deprecated. Use searchComponents instead.');
+  return searchComponents(components, query);
+}
+/**
+ * This function will find a component in a form and return the component AND THE PATH to the component in the form.
+ *
+ * @param components
+ * @param key
+ * @param fn
+ * @param path
+ * @returns {*}
+ */
+
+
+function findComponent(components, key, path, fn) {
+  if (!components) return;
+  path = path || [];
+
+  if (!key) {
+    return fn(components);
+  }
+
+  components.forEach(function (component, index) {
+    var newPath = path.slice();
+    newPath.push(index);
+    if (!component) return;
+
+    if (component.hasOwnProperty('columns') && Array.isArray(component.columns)) {
+      newPath.push('columns');
+      component.columns.forEach(function (column, index) {
+        var colPath = newPath.slice();
+        colPath.push(index);
+        colPath.push('components');
+        findComponent(column.components, key, colPath, fn);
+      });
+    }
+
+    if (component.hasOwnProperty('rows') && Array.isArray(component.rows)) {
+      newPath.push('rows');
+      component.rows.forEach(function (row, index) {
+        var rowPath = newPath.slice();
+        rowPath.push(index);
+        row.forEach(function (column, index) {
+          var colPath = rowPath.slice();
+          colPath.push(index);
+          colPath.push('components');
+          findComponent(column.components, key, colPath, fn);
+        });
+      });
+    }
+
+    if (component.hasOwnProperty('components') && Array.isArray(component.components)) {
+      newPath.push('components');
+      findComponent(component.components, key, newPath, fn);
+    }
+
+    if (component.key === key) {
+      fn(component, newPath);
+    }
+  });
+}
+/**
+ * Remove a component by path.
+ *
+ * @param components
+ * @param path
+ */
+
+
+function removeComponent(components, path) {
+  // Using _.unset() leave a null value. Use Array splice instead.
+  var index = path.pop();
+
+  if (path.length !== 0) {
+    components = (0, _get.default)(components, path);
+  }
+
+  components.splice(index, 1);
+}
+
+function generateFormChange(type, data) {
+  var change;
+
+  switch (type) {
+    case 'add':
+      change = {
+        op: 'add',
+        key: data.component.key,
+        container: data.parent.key,
+        // Parent component
+        path: data.path,
+        // Path to container within parent component.
+        index: data.index,
+        // Index of component in parent container.
+        component: data.component
+      };
+      break;
+
+    case 'edit':
+      change = {
+        op: 'edit',
+        key: data.originalComponent.key,
+        patches: _fastJsonPatch.default.compare(data.originalComponent, data.component)
+      }; // Don't save if nothing changed.
+
+      if (!change.patches.length) {
+        change = null;
+      }
+
+      break;
+
+    case 'remove':
+      change = {
+        op: 'remove',
+        key: data.component.key
+      };
+      break;
+  }
+
+  return change;
+}
+
+function applyFormChanges(form, changes) {
+  var failed = [];
+  changes.forEach(function (change) {
+    var found = false;
+
+    switch (change.op) {
+      case 'add':
+        var newComponent = change.component; // Find the container to set the component in.
+
+        findComponent(form.components, change.container, null, function (parent) {
+          if (!change.container) {
+            parent = form;
+          } // A move will first run an add so remove any existing components with matching key before inserting.
+
+
+          findComponent(form.components, change.key, null, function (component, path) {
+            // If found, use the existing component. (If someone else edited it, the changes would be here)
+            newComponent = component;
+            removeComponent(form.components, path);
+          });
+          found = true;
+          var container = (0, _get.default)(parent, change.path);
+          container.splice(change.index, 0, newComponent);
+        });
+        break;
+
+      case 'remove':
+        findComponent(form.components, change.key, null, function (component, path) {
+          found = true;
+          removeComponent(form.components, path);
+        });
+        break;
+
+      case 'edit':
+        findComponent(form.components, change.key, null, function (component, path) {
+          found = true;
+
+          try {
+            (0, _set.default)(form.components, path, _fastJsonPatch.default.applyPatch(component, change.patches).newDocument);
+          } catch (err) {
+            failed.push(change);
+          }
+        });
+        break;
+
+      case 'move':
+        break;
+    }
+
+    if (!found) {
+      failed.push(change);
+    }
+  });
+  return {
+    form: form,
+    failed: failed
+  };
+}
 /**
  * Flatten the form components for data manipulation.
  *
@@ -52923,6 +56354,8 @@ function findComponents(components, query) {
  * @returns {Object}
  *   The flattened components map.
  */
+
+
 function flattenComponents(components, includeAll) {
   var flattened = {};
   eachComponent(components, function (component, path) {
@@ -52930,7 +56363,6 @@ function flattenComponents(components, includeAll) {
   }, includeAll);
   return flattened;
 }
-
 /**
  * Returns if this component has a conditional statement.
  *
@@ -52938,10 +56370,11 @@ function flattenComponents(components, includeAll) {
  *
  * @returns {boolean} - TRUE - This component has a conditional, FALSE - No conditional provided.
  */
+
+
 function hasCondition(component) {
   return Boolean(component.customConditional || component.conditional && component.conditional.when || component.conditional && component.conditional.json);
 }
-
 /**
  * Extension of standard #parseFloat(value) function, that also clears input string.
  *
@@ -52951,10 +56384,11 @@ function hasCondition(component) {
  * @returns {Number}
  *   Parsed value.
  */
-function parseFloatExt(value) {
-  return parseFloat(_lodash2.default.isString(value) ? value.replace(/[^\de.+-]/gi, '') : value);
-}
 
+
+function parseFloatExt(value) {
+  return parseFloat((0, _isString.default)(value) ? value.replace(/[^\de.+-]/gi, '') : value);
+}
 /**
  * Formats provided value in way how Currency component uses it.
  *
@@ -52964,21 +56398,22 @@ function parseFloatExt(value) {
  * @returns {String}
  *   Value formatted for Currency component.
  */
+
+
 function formatAsCurrency(value) {
   var parsedValue = parseFloatExt(value);
 
-  if (_lodash2.default.isNaN(parsedValue)) {
+  if ((0, _isNaN.default)(parsedValue)) {
     return '';
   }
 
-  var parts = _lodash2.default.round(parsedValue, 2).toString().split('.');
-  parts[0] = _lodash2.default.chunk(Array.from(parts[0]).reverse(), 3).reverse().map(function (part) {
+  var parts = (0, _round.default)(parsedValue, 2).toString().split('.');
+  parts[0] = (0, _chunk.default)(Array.from(parts[0]).reverse(), 3).reverse().map(function (part) {
     return part.reverse().join('');
   }).join(',');
-  parts[1] = _lodash2.default.pad(parts[1], 2, '0');
+  parts[1] = (0, _pad.default)(parts[1], 2, '0');
   return parts.join('.');
 }
-
 /**
  * Escapes RegEx characters in provided String value.
  *
@@ -52987,10 +56422,533 @@ function formatAsCurrency(value) {
  * @returns {string}
  *   String with escaped RegEx characters.
  */
+
+
 function escapeRegExCharacters(value) {
   return value.replace(/[-[\]/{}()*+?.\\^$|]/g, '\\$&');
 }
+/**
+ * Get the value for a component key, in the given submission.
+ *
+ * @param {Object} submission
+ *   A submission object to search.
+ * @param {String} key
+ *   A for components API key to search for.
+ */
 
+
+function getValue(submission, key) {
+  var search = function search(data) {
+    if ((0, _isPlainObject.default)(data)) {
+      if ((0, _has.default)(data, key)) {
+        return data[key];
+      }
+
+      var value = null;
+      (0, _forOwn.default)(data, function (prop) {
+        var result = search(prop);
+
+        if (!(0, _isNil.default)(result)) {
+          value = result;
+          return false;
+        }
+      });
+      return value;
+    } else {
+      return null;
+    }
+  };
+
+  return search(submission.data);
+}
+/**
+ * Iterate over all components in a form and get string values for translation.
+ * @param form
+ */
+
+
+function getStrings(form) {
+  var _this = this;
+
+  var properties = ['label', 'title', 'legend', 'tooltip', 'description', 'placeholder', 'prefix', 'suffix', 'errorLabel', 'content', 'html'];
+  var strings = [];
+  eachComponent(form.components, function (component) {
+    properties.forEach(function (property) {
+      if (component.hasOwnProperty(property) && component[property]) {
+        strings.push({
+          key: component.key,
+          type: component.type,
+          property: property,
+          string: component[property]
+        });
+      }
+    });
+
+    if ((!component.dataSrc || component.dataSrc === 'values') && component.hasOwnProperty('values') && Array.isArray(component.values) && component.values.length) {
+      component.values.forEach(function (value, index) {
+        strings.push({
+          key: component.key,
+          property: "value[".concat(index, "].label"),
+          string: component.values[index].label
+        });
+      });
+    } // Hard coded values from Day component
+
+
+    if (component.type === 'day') {
+      ['day', 'month', 'year', 'Day', 'Month', 'Year', 'january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'].forEach(function (string) {
+        strings.push({
+          key: component.key,
+          property: 'day',
+          string: string
+        });
+      });
+
+      if (component.fields.day.placeholder) {
+        strings.push({
+          key: component.key,
+          property: 'fields.day.placeholder',
+          string: component.fields.day.placeholder
+        });
+      }
+
+      if (component.fields.month.placeholder) {
+        strings.push({
+          key: component.key,
+          property: 'fields.month.placeholder',
+          string: component.fields.month.placeholder
+        });
+      }
+
+      if (component.fields.year.placeholder) {
+        strings.push({
+          key: component.key,
+          property: 'fields.year.placeholder',
+          string: component.fields.year.placeholder
+        });
+      }
+    }
+
+    if (component.type === 'editgrid') {
+      var string = _this.component.addAnother || 'Add Another';
+
+      if (component.addAnother) {
+        strings.push({
+          key: component.key,
+          property: 'addAnother',
+          string: string
+        });
+      }
+    }
+
+    if (component.type === 'select') {
+      ['loading...', 'Type to search'].forEach(function (string) {
+        strings.push({
+          key: component.key,
+          property: 'select',
+          string: string
+        });
+      });
+    }
+  }, true);
+  return strings;
+}
+},{"core-js/modules/es6.array.from":105,"core-js/modules/es6.array.iterator":106,"core-js/modules/es6.regexp.replace":116,"core-js/modules/es6.regexp.split":118,"core-js/modules/es6.regexp.to-string":119,"core-js/modules/es6.string.includes":120,"core-js/modules/es6.string.iterator":121,"core-js/modules/es7.array.includes":123,"core-js/modules/web.dom.iterable":125,"fast-json-patch":131,"lodash/chunk":313,"lodash/clone":314,"lodash/forOwn":319,"lodash/get":320,"lodash/has":321,"lodash/isNaN":335,"lodash/isNil":336,"lodash/isPlainObject":340,"lodash/isString":342,"lodash/pad":352,"lodash/round":354,"lodash/set":355}],144:[function(_dereq_,module,exports){
+(function (global){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = void 0;
+
+_dereq_("core-js/modules/es7.symbol.async-iterator");
+
+_dereq_("core-js/modules/es6.symbol");
+
+var FormioUtils = _interopRequireWildcard(_dereq_("./utils"));
+
+function _interopRequireWildcard(obj) { if (obj && obj.__esModule) { return obj; } else { var newObj = {}; if (obj != null) { for (var key in obj) { if (Object.prototype.hasOwnProperty.call(obj, key)) { var desc = Object.defineProperty && Object.getOwnPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : {}; if (desc.get || desc.set) { Object.defineProperty(newObj, key, desc); } else { newObj[key] = obj[key]; } } } } newObj.default = obj; return newObj; } }
+
+function _typeof(obj) { if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
+
+if ((typeof global === "undefined" ? "undefined" : _typeof(global)) === 'object') {
+  global.FormioUtils = FormioUtils;
+}
+
+var _default = FormioUtils;
+exports.default = _default;
+}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{"./utils":146,"core-js/modules/es6.symbol":122,"core-js/modules/es7.symbol.async-iterator":124}],145:[function(_dereq_,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.lodashOperators = void 0;
+// Use only immutable useful functions from Lodash.
+// Visit https://lodash.com/docs for more info.
+var lodashOperators = [// Array
+'chunk', 'compact', 'concat', 'difference', 'differenceBy', 'differenceWith', 'drop', 'dropRight', 'dropRightWhile', 'dropWhile', 'findIndex', 'findLastIndex', 'first', 'flatten', 'flattenDeep', 'flattenDepth', 'fromPairs', 'head', 'indexOf', 'initial', 'intersection', 'intersectionBy', 'intersectionWith', 'join', 'last', 'lastIndexOf', 'nth', 'slice', 'sortedIndex', 'sortedIndexBy', 'sortedIndexOf', 'sortedLastIndex', 'sortedLastIndexBy', 'sortedLastIndexOf', 'sortedUniq', 'sortedUniqBy', 'tail', 'take', 'takeRight', 'takeRightWhile', 'takeWhile', 'union', 'unionBy', 'unionWith', 'uniq', 'uniqBy', 'uniqWith', 'unzip', 'unzipWith', 'without', 'xor', 'xorBy', 'xorWith', 'zip', 'zipObject', 'zipObjectDeep', 'zipWith', // Collection
+'countBy', 'every', 'filter', 'find', 'findLast', 'flatMap', 'flatMapDeep', 'flatMapDepth', 'groupBy', 'includes', 'invokeMap', 'keyBy', 'map', 'orderBy', 'partition', 'reduce', 'reduceRight', 'reject', 'sample', 'sampleSize', 'shuffle', 'size', 'some', 'sortBy', // Date
+'now', // Function
+'flip', 'negate', 'overArgs', 'partial', 'partialRight', 'rearg', 'rest', 'spread', // Lang
+'castArray', 'clone', 'cloneDeep', 'cloneDeepWith', 'cloneDeep', 'conformsTo', 'eq', 'gt', 'gte', 'isArguments', 'isArray', 'isArrayBuffer', 'isArrayLike', 'isArrayLikeObject', 'isBoolean', 'isBuffer', 'isDate', 'isElement', 'isEmpty', 'isEqual', 'isEqualWith', 'isError', 'isFinite', 'isFunction', 'isInteger', 'isLength', 'isMap', 'isMatch', 'isMatchWith', 'isNaN', 'isNative', 'isNil', 'isNull', 'isNumber', 'isObject', 'isObjectLike', 'isPlainObject', 'isRegExp', 'isSafeInteger', 'isSet', 'isString', 'isSymbol', 'isTypedArray', 'isUndefined', 'isWeakMap', 'isWeakSet', 'lt', 'lte', 'toArray', 'toFinite', 'toInteger', 'toLength', 'toNumber', 'toPlainObject', 'toSafeInteger', 'toString', // Math
+'add', 'ceil', 'divide', 'floor', 'max', 'maxBy', 'mean', 'meanBy', 'min', 'minBy', 'multiply', 'round', 'subtract', 'sum', 'sumBy', // Number
+'clamp', 'inRange', 'random', // Object
+'at', 'entries', 'entriesIn', 'findKey', 'findLastKey', 'functions', 'functionsIn', 'get', 'has', 'hasIn', 'invert', 'invertBy', 'invoke', 'keys', 'keysIn', 'mapKeys', 'mapValues', 'omit', 'omitBy', 'pick', 'pickBy', 'result', 'toPairs', 'toPairsIn', 'transform', 'values', 'valuesIn', // String
+'camelCase', 'capitalize', 'deburr', 'endsWith', 'escape', 'escapeRegExp', 'kebabCase', 'lowerCase', 'lowerFirst', 'pad', 'padEnd', 'padStart', 'parseInt', 'repeat', 'replace', 'snakeCase', 'split', 'startCase', 'startsWith', 'toLower', 'toUpper', 'trim', 'trimEnd', 'trimStart', 'truncate', 'unescape', 'upperCase', 'upperFirst', 'words', // Util
+'cond', 'conforms', 'constant', 'defaultTo', 'flow', 'flowRight', 'identity', 'iteratee', 'matches', 'matchesProperty', 'method', 'methodOf', 'nthArg', 'over', 'overEvery', 'overSome', 'property', 'propertyOf', 'range', 'rangeRight', 'stubArray', 'stubFalse', 'stubObject', 'stubString', 'stubTrue', 'times', 'toPath', 'uniqueId'];
+exports.lodashOperators = lodashOperators;
+},{}],146:[function(_dereq_,module,exports){
+"use strict";
+
+_dereq_("core-js/modules/es6.object.keys");
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+var _exportNames = {
+  evaluate: true,
+  getRandomComponentId: true,
+  getPropertyValue: true,
+  getElementRect: true,
+  boolValue: true,
+  isMongoId: true,
+  checkCalculated: true,
+  checkSimpleConditional: true,
+  checkCustomConditional: true,
+  checkJsonConditional: true,
+  checkCondition: true,
+  checkTrigger: true,
+  setActionProperty: true,
+  addTemplateHash: true,
+  interpolate: true,
+  uniqueName: true,
+  guid: true,
+  getDateSetting: true,
+  isValidDate: true,
+  currentTimezone: true,
+  offsetDate: true,
+  zonesLoaded: true,
+  shouldLoadZones: true,
+  loadZones: true,
+  momentDate: true,
+  formatDate: true,
+  formatOffset: true,
+  getLocaleDateFormatInfo: true,
+  convertFormatToFlatpickr: true,
+  convertFormatToMoment: true,
+  convertFormatToMask: true,
+  getInputMask: true,
+  matchInputMask: true,
+  getNumberSeparators: true,
+  getNumberDecimalLimit: true,
+  getCurrencyAffixes: true,
+  fieldData: true,
+  delay: true,
+  iterateKey: true,
+  uniqueKey: true,
+  bootstrapVersion: true,
+  unfold: true,
+  firstNonNil: true,
+  withSwitch: true,
+  observeOverload: true,
+  jsonLogic: true,
+  moment: true
+};
+exports.evaluate = evaluate;
+exports.getRandomComponentId = getRandomComponentId;
+exports.getPropertyValue = getPropertyValue;
+exports.getElementRect = getElementRect;
+exports.boolValue = boolValue;
+exports.isMongoId = isMongoId;
+exports.checkCalculated = checkCalculated;
+exports.checkSimpleConditional = checkSimpleConditional;
+exports.checkCustomConditional = checkCustomConditional;
+exports.checkJsonConditional = checkJsonConditional;
+exports.checkCondition = checkCondition;
+exports.checkTrigger = checkTrigger;
+exports.setActionProperty = setActionProperty;
+exports.addTemplateHash = addTemplateHash;
+exports.interpolate = interpolate;
+exports.uniqueName = uniqueName;
+exports.guid = guid;
+exports.getDateSetting = getDateSetting;
+exports.isValidDate = isValidDate;
+exports.currentTimezone = currentTimezone;
+exports.offsetDate = offsetDate;
+exports.zonesLoaded = zonesLoaded;
+exports.shouldLoadZones = shouldLoadZones;
+exports.loadZones = loadZones;
+exports.momentDate = momentDate;
+exports.formatDate = formatDate;
+exports.formatOffset = formatOffset;
+exports.getLocaleDateFormatInfo = getLocaleDateFormatInfo;
+exports.convertFormatToFlatpickr = convertFormatToFlatpickr;
+exports.convertFormatToMoment = convertFormatToMoment;
+exports.convertFormatToMask = convertFormatToMask;
+exports.getInputMask = getInputMask;
+exports.matchInputMask = matchInputMask;
+exports.getNumberSeparators = getNumberSeparators;
+exports.getNumberDecimalLimit = getNumberDecimalLimit;
+exports.getCurrencyAffixes = getCurrencyAffixes;
+exports.fieldData = fieldData;
+exports.delay = delay;
+exports.iterateKey = iterateKey;
+exports.uniqueKey = uniqueKey;
+exports.bootstrapVersion = bootstrapVersion;
+exports.unfold = unfold;
+exports.withSwitch = withSwitch;
+exports.observeOverload = observeOverload;
+Object.defineProperty(exports, "jsonLogic", {
+  enumerable: true,
+  get: function get() {
+    return _jsonLogicJs.default;
+  }
+});
+Object.defineProperty(exports, "moment", {
+  enumerable: true,
+  get: function get() {
+    return _momentTimezone.default;
+  }
+});
+exports.firstNonNil = void 0;
+
+_dereq_("core-js/modules/es6.reflect.construct");
+
+_dereq_("core-js/modules/es6.string.iterator");
+
+_dereq_("core-js/modules/es6.array.from");
+
+_dereq_("core-js/modules/es7.symbol.async-iterator");
+
+_dereq_("core-js/modules/es6.symbol");
+
+_dereq_("core-js/modules/es6.array.find");
+
+_dereq_("core-js/modules/es6.number.constructor");
+
+_dereq_("core-js/modules/es6.regexp.constructor");
+
+_dereq_("core-js/modules/es6.regexp.split");
+
+_dereq_("core-js/modules/es7.array.includes");
+
+_dereq_("core-js/modules/es6.string.includes");
+
+_dereq_("core-js/modules/es6.regexp.match");
+
+_dereq_("core-js/modules/es6.regexp.to-string");
+
+_dereq_("core-js/modules/es6.regexp.replace");
+
+_dereq_("core-js/modules/es6.array.iterator");
+
+_dereq_("core-js/modules/es6.function.name");
+
+_dereq_("core-js/modules/web.dom.iterable");
+
+var _lodash = _interopRequireDefault(_dereq_("lodash"));
+
+_dereq_("whatwg-fetch");
+
+var _jsonLogicJs = _interopRequireDefault(_dereq_("json-logic-js"));
+
+var _momentTimezone = _interopRequireDefault(_dereq_("moment-timezone/moment-timezone"));
+
+var _jstimezonedetect = _interopRequireDefault(_dereq_("jstimezonedetect"));
+
+var _operators = _dereq_("./jsonlogic/operators");
+
+var _nativePromiseOnly = _interopRequireDefault(_dereq_("native-promise-only"));
+
+var _formUtils = _dereq_("./formUtils");
+
+Object.keys(_formUtils).forEach(function (key) {
+  if (key === "default" || key === "__esModule") return;
+  if (Object.prototype.hasOwnProperty.call(_exportNames, key)) return;
+  Object.defineProperty(exports, key, {
+    enumerable: true,
+    get: function get() {
+      return _formUtils[key];
+    }
+  });
+});
+
+var _stringHash = _interopRequireDefault(_dereq_("string-hash"));
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _typeof(obj) { if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
+
+function isNativeReflectConstruct() { if (typeof Reflect === "undefined" || !Reflect.construct) return false; if (Reflect.construct.sham) return false; if (typeof Proxy === "function") return true; try { Date.prototype.toString.call(Reflect.construct(Date, [], function () {})); return true; } catch (e) { return false; } }
+
+function _construct(Parent, args, Class) { if (isNativeReflectConstruct()) { _construct = Reflect.construct; } else { _construct = function _construct(Parent, args, Class) { var a = [null]; a.push.apply(a, args); var Constructor = Function.bind.apply(Parent, a); var instance = new Constructor(); if (Class) _setPrototypeOf(instance, Class.prototype); return instance; }; } return _construct.apply(null, arguments); }
+
+function _setPrototypeOf(o, p) { _setPrototypeOf = Object.setPrototypeOf || function _setPrototypeOf(o, p) { o.__proto__ = p; return o; }; return _setPrototypeOf(o, p); }
+
+function _toConsumableArray(arr) { return _arrayWithoutHoles(arr) || _iterableToArray(arr) || _nonIterableSpread(); }
+
+function _nonIterableSpread() { throw new TypeError("Invalid attempt to spread non-iterable instance"); }
+
+function _iterableToArray(iter) { if (Symbol.iterator in Object(iter) || Object.prototype.toString.call(iter) === "[object Arguments]") return Array.from(iter); }
+
+function _arrayWithoutHoles(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = new Array(arr.length); i < arr.length; i++) { arr2[i] = arr[i]; } return arr2; } }
+
+// Configure JsonLogic
+_operators.lodashOperators.forEach(function (name) {
+  return _jsonLogicJs.default.add_operation("_".concat(name), _lodash.default[name]);
+}); // Retrieve Any Date
+
+
+_jsonLogicJs.default.add_operation('getDate', function (date) {
+  return (0, _momentTimezone.default)(date).toISOString();
+}); // Set Relative Minimum Date
+
+
+_jsonLogicJs.default.add_operation('relativeMinDate', function (relativeMinDate) {
+  return (0, _momentTimezone.default)().subtract(relativeMinDate, 'days').toISOString();
+}); // Set Relative Maximum Date
+
+
+_jsonLogicJs.default.add_operation('relativeMaxDate', function (relativeMaxDate) {
+  return (0, _momentTimezone.default)().add(relativeMaxDate, 'days').toISOString();
+});
+
+/**
+ * Evaluate a method.
+ *
+ * @param func
+ * @param args
+ * @return {*}
+ */
+function evaluate(func, args, ret, tokenize) {
+  var returnVal = null;
+  args.component = args.component ? _lodash.default.cloneDeep(args.component) : {
+    key: 'unknown'
+  };
+
+  if (!args.form && args.instance) {
+    args.form = _lodash.default.get(args.instance, 'root._form', {});
+  }
+
+  args.form = _lodash.default.cloneDeep(args.form);
+  var componentKey = args.component.key;
+
+  if (typeof func === 'string') {
+    if (ret) {
+      func += ";return ".concat(ret);
+    }
+
+    var params = _lodash.default.keys(args);
+
+    if (tokenize) {
+      // Replace all {{ }} references with actual data.
+      func = func.replace(/({{\s+(.*)\s+}})/, function (match, $1, $2) {
+        if ($2.indexOf('data.') === 0) {
+          return _lodash.default.get(args.data, $2.replace('data.', ''));
+        } else if ($2.indexOf('row.') === 0) {
+          return _lodash.default.get(args.row, $2.replace('row.', ''));
+        } // Support legacy...
+
+
+        return _lodash.default.get(args.data, $2);
+      });
+    }
+
+    try {
+      func = _construct(Function, _toConsumableArray(params).concat([func]));
+      args = _lodash.default.values(args);
+    } catch (err) {
+      console.warn("An error occured within the custom function for ".concat(componentKey), err);
+      returnVal = null;
+      func = false;
+    }
+  }
+
+  if (typeof func === 'function') {
+    try {
+      returnVal = Array.isArray(args) ? func.apply(void 0, _toConsumableArray(args)) : func(args);
+    } catch (err) {
+      returnVal = null;
+      console.warn("An error occured within custom function for ".concat(componentKey), err);
+    }
+  } else if (_typeof(func) === 'object') {
+    try {
+      returnVal = _jsonLogicJs.default.apply(func, args);
+    } catch (err) {
+      returnVal = null;
+      console.warn("An error occured within custom function for ".concat(componentKey), err);
+    }
+  } else if (func) {
+    console.warn("Unknown function type for ".concat(componentKey));
+  }
+
+  return returnVal;
+}
+
+function getRandomComponentId() {
+  return "e".concat(Math.random().toString(36).substring(7));
+}
+/**
+ * Get a property value of an element.
+ *
+ * @param style
+ * @param prop
+ * @return {number}
+ */
+
+
+function getPropertyValue(style, prop) {
+  var value = style.getPropertyValue(prop);
+  value = value ? value.replace(/[^0-9.]/g, '') : '0';
+  return parseFloat(value);
+}
+/**
+ * Get an elements bounding rectagle.
+ *
+ * @param element
+ * @return {{x: string, y: string, width: string, height: string}}
+ */
+
+
+function getElementRect(element) {
+  var style = window.getComputedStyle(element, null);
+  return {
+    x: getPropertyValue(style, 'left'),
+    y: getPropertyValue(style, 'top'),
+    width: getPropertyValue(style, 'width'),
+    height: getPropertyValue(style, 'height')
+  };
+}
+/**
+ * Determines the boolean value of a setting.
+ *
+ * @param value
+ * @return {boolean}
+ */
+
+
+function boolValue(value) {
+  if (_lodash.default.isBoolean(value)) {
+    return value;
+  } else if (_lodash.default.isString(value)) {
+    return value.toLowerCase() === 'true';
+  } else {
+    return !!value;
+  }
+}
+/**
+ * Check to see if an ID is a mongoID.
+ * @param text
+ * @return {Array|{index: number, input: string}|Boolean|*}
+ */
+
+
+function isMongoId(text) {
+  return text.toString().match(/^[0-9a-fA-F]{24}$/);
+}
 /**
  * Checks the calculated value for a provided component and data.
  *
@@ -53001,10 +56959,12 @@ function escapeRegExCharacters(value) {
  * @param data
  *   The full submission data.
  */
+
+
 function checkCalculated(component, submission, rowData) {
   // Process calculated value stuff if present.
   if (component.calculateValue) {
-    _lodash2.default.set(rowData, component.key, evaluate(component.calculateValue, {
+    _lodash.default.set(rowData, component.key, evaluate(component.calculateValue, {
       value: undefined,
       data: submission ? submission.data : rowData,
       row: rowData,
@@ -53013,7 +56973,6 @@ function checkCalculated(component, submission, rowData) {
     }, 'value'));
   }
 }
-
 /**
  * Check if a simple conditional evaluates to true.
  *
@@ -53023,34 +56982,42 @@ function checkCalculated(component, submission, rowData) {
  * @param data
  * @returns {boolean}
  */
+
+
 function checkSimpleConditional(component, condition, row, data) {
   var value = null;
+
   if (row) {
-    value = getValue({ data: row }, condition.when);
+    value = (0, _formUtils.getValue)({
+      data: row
+    }, condition.when);
   }
-  if (data && _lodash2.default.isNil(value)) {
-    value = getValue({ data: data }, condition.when);
-  }
-  // FOR-400 - Fix issue where falsey values were being evaluated as show=true
-  if (_lodash2.default.isNil(value)) {
+
+  if (data && _lodash.default.isNil(value)) {
+    value = (0, _formUtils.getValue)({
+      data: data
+    }, condition.when);
+  } // FOR-400 - Fix issue where falsey values were being evaluated as show=true
+
+
+  if (_lodash.default.isNil(value)) {
     value = '';
   }
 
   var eq = String(condition.eq);
-  var show = String(condition.show);
+  var show = String(condition.show); // Special check for selectboxes component.
 
-  // Special check for selectboxes component.
-  if (_lodash2.default.isObject(value) && _lodash2.default.has(value, condition.eq)) {
+  if (_lodash.default.isObject(value) && _lodash.default.has(value, condition.eq)) {
     return String(value[condition.eq]) === show;
-  }
-  // FOR-179 - Check for multiple values.
-  if (Array.isArray(value) && value.map(String).indexOf(eq) !== -1) {
+  } // FOR-179 - Check for multiple values.
+
+
+  if (Array.isArray(value) && value.map(String).includes(eq)) {
     return show === 'true';
   }
 
   return String(value) === eq === (show === 'true');
 }
-
 /**
  * Check custom javascript conditional.
  *
@@ -53060,31 +57027,39 @@ function checkSimpleConditional(component, condition, row, data) {
  * @param data
  * @returns {*}
  */
+
+
 function checkCustomConditional(component, custom, row, data, form, variable, onError, instance) {
   if (typeof custom === 'string') {
-    custom = 'var ' + variable + ' = true; ' + custom + '; return ' + variable + ';';
+    custom = "var ".concat(variable, " = true; ").concat(custom, "; return ").concat(variable, ";");
   }
-  var value = instance && instance.evaluate ? instance.evaluate(custom) : evaluate(custom, { row: row, data: data, form: form });
+
+  var value = instance && instance.evaluate ? instance.evaluate(custom) : evaluate(custom, {
+    row: row,
+    data: data,
+    form: form
+  });
+
   if (value === null) {
     return onError;
   }
+
   return value;
 }
 
 function checkJsonConditional(component, json, row, data, form, onError) {
   try {
-    return _jsonLogicJs2.default.apply(json, {
+    return _jsonLogicJs.default.apply(json, {
       data: data,
       row: row,
       form: form,
-      _: _lodash2.default
+      _: _lodash.default
     });
   } catch (err) {
-    console.warn('An error occurred in jsonLogic advanced condition for ' + component.key, err);
+    console.warn("An error occurred in jsonLogic advanced condition for ".concat(component.key), err);
     return onError;
   }
 }
-
 /**
  * Checks the conditions for a provided component and data.
  *
@@ -53097,6 +57072,8 @@ function checkJsonConditional(component, json, row, data, form, onError) {
  *
  * @returns {boolean}
  */
+
+
 function checkCondition(component, row, data, form, instance) {
   if (component.customConditional) {
     return checkCustomConditional(component, component.customConditional, row, data, form, 'show', true, instance);
@@ -53104,12 +57081,11 @@ function checkCondition(component, row, data, form, instance) {
     return checkSimpleConditional(component, component.conditional, row, data, true);
   } else if (component.conditional && component.conditional.json) {
     return checkJsonConditional(component, component.conditional.json, row, data, form, instance);
-  }
+  } // Default to show.
 
-  // Default to show.
+
   return true;
 }
-
 /**
  * Test a trigger on a component.
  *
@@ -53119,26 +57095,33 @@ function checkCondition(component, row, data, form, instance) {
  * @param row
  * @returns {mixed}
  */
+
+
 function checkTrigger(component, trigger, row, data, form, instance) {
   switch (trigger.type) {
     case 'simple':
       return checkSimpleConditional(component, trigger.simple, row, data);
+
     case 'javascript':
       return checkCustomConditional(component, trigger.javascript, row, data, form, 'result', false, instance);
+
     case 'json':
       return checkJsonConditional(component, trigger.json, row, data, form, false);
-  }
-  // If none of the types matched, don't fire the trigger.
+  } // If none of the types matched, don't fire the trigger.
+
+
   return false;
 }
 
 function setActionProperty(component, action, row, data, result, instance) {
   switch (action.property.type) {
     case 'boolean':
-      if (_lodash2.default.get(component, action.property.value, false).toString() !== action.state.toString()) {
-        _lodash2.default.set(component, action.property.value, action.state.toString() === 'true');
+      if (_lodash.default.get(component, action.property.value, false).toString() !== action.state.toString()) {
+        _lodash.default.set(component, action.property.value, action.state.toString() === 'true');
       }
+
       break;
+
     case 'string':
       {
         var evalData = {
@@ -53147,50 +57130,42 @@ function setActionProperty(component, action, row, data, result, instance) {
           component: component,
           result: result
         };
-        var newValue = instance && instance.interpolate ? instance.interpolate(action.text, evalData) : interpolate(action.text, evalData);
-        if (newValue !== _lodash2.default.get(component, action.property.value, '')) {
-          _lodash2.default.set(component, action.property.value, newValue);
+        var textValue = action.property.component ? action[action.property.component] : action.text;
+        var newValue = instance && instance.interpolate ? instance.interpolate(textValue, evalData) : interpolate(textValue, evalData);
+
+        if (newValue !== _lodash.default.get(component, action.property.value, '')) {
+          _lodash.default.set(component, action.property.value, newValue);
         }
+
         break;
       }
   }
+
   return component;
 }
 
-/**
- * Get the value for a component key, in the given submission.
- *
- * @param {Object} submission
- *   A submission object to search.
- * @param {String} key
- *   A for components API key to search for.
- */
-function getValue(submission, key) {
-  var search = function search(data) {
-    if (_lodash2.default.isPlainObject(data)) {
-      if (_lodash2.default.has(data, key)) {
-        return data[key];
-      }
+var templateCache = {};
+var templateHashCache = {};
 
-      var value = null;
-
-      _lodash2.default.forOwn(data, function (prop) {
-        var result = search(prop);
-        if (!_lodash2.default.isNil(result)) {
-          value = result;
-          return false;
-        }
-      });
-
-      return value;
-    } else {
-      return null;
-    }
+function interpolateTemplate(template) {
+  var templateSettings = {
+    evaluate: /\{%([\s\S]+?)%\}/g,
+    interpolate: /\{\{([\s\S]+?)\}\}/g,
+    escape: /\{\{\{([\s\S]+?)\}\}\}/g
   };
 
-  return search(submission.data);
+  try {
+    return _lodash.default.template(template, templateSettings);
+  } catch (err) {
+    console.warn('Error while processing template', err, template);
+  }
 }
 
+function addTemplateHash(template) {
+  var hash = (0, _stringHash.default)(template);
+  templateHashCache[hash] = interpolateTemplate(template);
+  return hash;
+}
 /**
  * Interpolate a string and add data replacements.
  *
@@ -53198,29 +57173,33 @@ function getValue(submission, key) {
  * @param data
  * @returns {XML|string|*|void}
  */
-function interpolate(string, data) {
-  var templateSettings = {
-    evaluate: /\{%(.+?)%\}/g,
-    interpolate: /\{\{(.+?)\}\}/g,
-    escape: /\{\{\{(.+?)\}\}\}/g
-  };
-  try {
-    return _lodash2.default.template(string, templateSettings)(data);
-  } catch (err) {
-    console.warn('Error interpolating template', err, string, data);
-  }
-}
 
+
+function interpolate(rawTemplate, data) {
+  var template = _lodash.default.isNumber(rawTemplate) ? templateHashCache[rawTemplate] : templateCache[rawTemplate] = templateCache[rawTemplate] || interpolateTemplate(rawTemplate);
+
+  if (typeof template === 'function') {
+    try {
+      return template(data);
+    } catch (err) {
+      console.warn('Error interpolating template', err, rawTemplate, data);
+    }
+  }
+
+  return template;
+}
 /**
  * Make a filename guaranteed to be unique.
  * @param name
  * @returns {string}
  */
+
+
 function uniqueName(name) {
   var parts = name.toLowerCase().replace(/[^0-9a-z.]/g, '').split('.');
   var fileName = parts[0];
-  var ext = parts.length > 1 ? '.' + _lodash2.default.last(parts) : '';
-  return fileName.substr(0, 10) + '-' + guid() + ext;
+  var ext = parts.length > 1 ? ".".concat(_lodash.default.last(parts)) : '';
+  return "".concat(fileName.substr(0, 10), "-").concat(guid()).concat(ext);
 }
 
 function guid() {
@@ -53230,15 +57209,16 @@ function guid() {
     return v.toString(16);
   });
 }
-
 /**
  * Return a translated date setting.
  *
  * @param date
- * @return {*}
+ * @return {(null|Date)}
  */
+
+
 function getDateSetting(date) {
-  if (_lodash2.default.isNil(date) || _lodash2.default.isNaN(date) || date === '') {
+  if (_lodash.default.isNil(date) || _lodash.default.isNaN(date) || date === '') {
     return null;
   }
 
@@ -53248,20 +57228,23 @@ function getDateSetting(date) {
     return date.isValid() ? date.toDate() : null;
   }
 
-  var dateSetting = typeof date !== 'string' || date.indexOf('moment(') === -1 ? (0, _momentTimezone2.default)(date) : null;
+  var dateSetting = typeof date !== 'string' || date.indexOf('moment(') === -1 ? (0, _momentTimezone.default)(date) : null;
+
   if (dateSetting && dateSetting.isValid()) {
     return dateSetting.toDate();
   }
 
   dateSetting = null;
+
   try {
-    var value = new Function('moment', 'return ' + date + ';')(_momentTimezone2.default);
+    var value = new Function('moment', "return ".concat(date, ";"))(_momentTimezone.default);
+
     if (typeof value === 'string') {
-      dateSetting = (0, _momentTimezone2.default)(value);
+      dateSetting = (0, _momentTimezone.default)(value);
     } else if (typeof value.toDate === 'function') {
-      dateSetting = (0, _momentTimezone2.default)(value.toDate().toUTCString());
+      dateSetting = (0, _momentTimezone.default)(value.toDate().toUTCString());
     } else if (value instanceof Date) {
-      dateSetting = (0, _momentTimezone2.default)(value);
+      dateSetting = (0, _momentTimezone.default)(value);
     }
   } catch (e) {
     return null;
@@ -53269,9 +57252,9 @@ function getDateSetting(date) {
 
   if (!dateSetting) {
     return null;
-  }
+  } // Ensure this is a date.
 
-  // Ensure this is a date.
+
   if (!dateSetting.isValid()) {
     return null;
   }
@@ -53280,22 +57263,23 @@ function getDateSetting(date) {
 }
 
 function isValidDate(date) {
-  return _lodash2.default.isDate(date) && !_lodash2.default.isNaN(date.getDate());
+  return _lodash.default.isDate(date) && !_lodash.default.isNaN(date.getDate());
 }
-
 /**
  * Get the current timezone string.
  *
  * @return {string}
  */
-function currentTimezone() {
-  if (_momentTimezone2.default.currentTimezone) {
-    return _momentTimezone2.default.currentTimezone;
-  }
-  _momentTimezone2.default.currentTimezone = _jstimezonedetect2.default.determine().name();
-  return _momentTimezone2.default.currentTimezone;
-}
 
+
+function currentTimezone() {
+  if (_momentTimezone.default.currentTimezone) {
+    return _momentTimezone.default.currentTimezone;
+  }
+
+  _momentTimezone.default.currentTimezone = _jstimezonedetect.default.determine().name();
+  return _momentTimezone.default.currentTimezone;
+}
 /**
  * Get an offset date provided a date object and timezone object.
  *
@@ -53303,6 +57287,8 @@ function currentTimezone() {
  * @param timezone
  * @return {Date}
  */
+
+
 function offsetDate(date, timezone) {
   if (timezone === 'UTC') {
     return {
@@ -53310,65 +57296,92 @@ function offsetDate(date, timezone) {
       abbr: 'UTC'
     };
   }
-  var dateMoment = (0, _momentTimezone2.default)(date).tz(timezone);
+
+  var dateMoment = (0, _momentTimezone.default)(date).tz(timezone);
   return {
     date: new Date(date.getTime() + (dateMoment.utcOffset() + date.getTimezoneOffset()) * 60000),
     abbr: dateMoment.format('z')
   };
 }
+/**
+ * Returns if the zones are loaded.
+ *
+ * @return {boolean}
+ */
 
+
+function zonesLoaded() {
+  return _momentTimezone.default.zonesLoaded;
+}
+/**
+ * Returns if we should load the zones.
+ *
+ * @param timezone
+ * @return {boolean}
+ */
+
+
+function shouldLoadZones(timezone) {
+  if (timezone === currentTimezone() || timezone === 'UTC') {
+    return false;
+  }
+
+  return true;
+}
 /**
  * Externally load the timezone data.
  *
  * @return {Promise<any> | *}
  */
+
+
 function loadZones(timezone) {
-  if (timezone === currentTimezone()) {
+  if (timezone && !shouldLoadZones(timezone)) {
     // Return non-resolving promise.
-    return new _nativePromiseOnly2.default(_lodash2.default.noop);
-  }
-  if (timezone === 'UTC') {
-    // Return non-resolving promise.
-    return new _nativePromiseOnly2.default(_lodash2.default.noop);
+    return new _nativePromiseOnly.default(_lodash.default.noop);
   }
 
-  if (_momentTimezone2.default.zonesPromise) {
-    return _momentTimezone2.default.zonesPromise;
+  if (_momentTimezone.default.zonesPromise) {
+    return _momentTimezone.default.zonesPromise;
   }
-  return _momentTimezone2.default.zonesPromise = fetch('https://cdn.rawgit.com/moment/moment-timezone/develop/data/packed/latest.json').then(function (resp) {
+
+  return _momentTimezone.default.zonesPromise = fetch('https://formio.github.io/formio.js/resources/latest.json').then(function (resp) {
     return resp.json().then(function (zones) {
-      _momentTimezone2.default.tz.load(zones);
-      _momentTimezone2.default.zonesLoaded = true;
+      _momentTimezone.default.tz.load(zones);
+
+      _momentTimezone.default.zonesLoaded = true; // Trigger a global event that the timezones have finished loading.
+
+      if (document && document.createEvent && document.body && document.body.dispatchEvent) {
+        var event = document.createEvent('Event');
+        event.initEvent('zonesLoaded', true, true);
+        document.body.dispatchEvent(event);
+      }
     });
   });
 }
-
 /**
- * Set the timezone text and replace once timezones have loaded.
+ * Get the moment date object for translating dates with timezones.
  *
- * @param offsetFormat
- * @param stdFormat
+ * @param value
+ * @param format
+ * @param timezone
  * @return {*}
  */
-function timezoneText(offsetFormat, stdFormat) {
-  loadZones();
-  if (_momentTimezone2.default.zonesLoaded) {
-    return offsetFormat();
-  }
-  var id = getRandomComponentId();
-  var tries = 0;
-  _momentTimezone2.default.zonesPromise.then(function replaceZone() {
-    var element = document.getElementById(id);
-    if (element) {
-      element.innerHTML = offsetFormat();
-    } else if (tries++ < 5) {
-      setTimeout(replaceZone, 100);
-    }
-  });
-  // For now just return the current format, and replace once zones are loaded.
-  return '<span id=\'' + id + '\'>' + stdFormat() + '</span>';
-}
 
+
+function momentDate(value, format, timezone) {
+  var momentDate = (0, _momentTimezone.default)(value);
+
+  if (timezone === 'UTC') {
+    timezone = 'Etc/UTC';
+  }
+
+  if ((timezone !== currentTimezone() || format && format.match(/\s(z$|z\s)/)) && _momentTimezone.default.zonesLoaded) {
+    return momentDate.tz(timezone);
+  }
+
+  return momentDate;
+}
 /**
  * Format a date provided a value, format, and timezone object.
  *
@@ -53377,35 +57390,41 @@ function timezoneText(offsetFormat, stdFormat) {
  * @param timezone
  * @return {string}
  */
+
+
 function formatDate(value, format, timezone) {
-  var momentDate = (0, _momentTimezone2.default)(value);
+  var momentDate = (0, _momentTimezone.default)(value);
+
   if (timezone === currentTimezone()) {
     // See if our format contains a "z" timezone character.
     if (format.match(/\s(z$|z\s)/)) {
-      // Return the timezoneText.
-      return timezoneText(function () {
-        return momentDate.tz(timezone).format(convertFormatToMoment(format));
-      }, function () {
-        return momentDate.format(convertFormatToMoment(format.replace(/\s(z$|z\s)/, '')));
-      });
-    }
+      loadZones();
 
-    // Return the standard format.
+      if (_momentTimezone.default.zonesLoaded) {
+        return momentDate.tz(timezone).format(convertFormatToMoment(format));
+      } else {
+        return momentDate.format(convertFormatToMoment(format.replace(/\s(z$|z\s)/, '')));
+      }
+    } // Return the standard format.
+
+
     return momentDate.format(convertFormatToMoment(format));
   }
+
   if (timezone === 'UTC') {
     var offset = offsetDate(momentDate.toDate(), 'UTC');
-    return (0, _momentTimezone2.default)(offset.date).format(convertFormatToMoment(format)) + ' UTC';
-  }
+    return "".concat((0, _momentTimezone.default)(offset.date).format(convertFormatToMoment(format)), " UTC");
+  } // Load the zones since we need timezone information.
 
-  // Return the timezoneText.
-  return timezoneText(function () {
-    return momentDate.tz(timezone).format(convertFormatToMoment(format) + ' z');
-  }, function () {
+
+  loadZones();
+
+  if (_momentTimezone.default.zonesLoaded) {
+    return momentDate.tz(timezone).format("".concat(convertFormatToMoment(format), " z"));
+  } else {
     return momentDate.format(convertFormatToMoment(format));
-  });
+  }
 }
-
 /**
  * Pass a format function to format within a timezone.
  *
@@ -53415,121 +57434,115 @@ function formatDate(value, format, timezone) {
  * @param timezone
  * @return {string}
  */
+
+
 function formatOffset(formatFn, date, format, timezone) {
   if (timezone === currentTimezone()) {
     return formatFn(date, format);
   }
-  if (timezone === 'UTC') {
-    return formatFn(offsetDate(date, 'UTC').date, format) + ' UTC';
-  }
 
-  // Return the timezone text.
-  return timezoneText(function () {
+  if (timezone === 'UTC') {
+    return "".concat(formatFn(offsetDate(date, 'UTC').date, format), " UTC");
+  } // Load the zones since we need timezone information.
+
+
+  loadZones();
+
+  if (_momentTimezone.default.zonesLoaded) {
     var offset = offsetDate(date, timezone);
-    return formatFn(offset.date, format) + ' ' + offset.abbr;
-  }, function () {
+    return "".concat(formatFn(offset.date, format), " ").concat(offset.abbr);
+  } else {
     return formatFn(date, format);
-  });
+  }
 }
 
 function getLocaleDateFormatInfo(locale) {
   var formatInfo = {};
-
   var day = 21;
   var exampleDate = new Date(2017, 11, day);
   var localDateString = exampleDate.toLocaleDateString(locale);
-
   formatInfo.dayFirst = localDateString.slice(0, 2) === day.toString();
-
   return formatInfo;
 }
-
 /**
  * Convert the format from the angular-datepicker module to flatpickr format.
  * @param format
  * @return {string}
  */
+
+
 function convertFormatToFlatpickr(format) {
-  return format
-  // Remove the Z timezone offset, not supported by flatpickr.
-  .replace(/Z/g, '')
-
-  // Year conversion.
-  .replace(/y/g, 'Y').replace('YYYY', 'Y').replace('YY', 'y')
-
-  // Month conversion.
-  .replace('MMMM', 'F').replace(/M/g, 'n').replace('nnn', 'M').replace('nn', 'm')
-
-  // Day in month.
-  .replace(/d/g, 'j').replace(/jj/g, 'd')
-
-  // Day in week.
-  .replace('EEEE', 'l').replace('EEE', 'D')
-
-  // Hours, minutes, seconds
+  return format // Remove the Z timezone offset, not supported by flatpickr.
+  .replace(/Z/g, '') // Year conversion.
+  .replace(/y/g, 'Y').replace('YYYY', 'Y').replace('YY', 'y') // Month conversion.
+  .replace('MMMM', 'F').replace(/M/g, 'n').replace('nnn', 'M').replace('nn', 'm') // Day in month.
+  .replace(/d/g, 'j').replace(/jj/g, 'd') // Day in week.
+  .replace('EEEE', 'l').replace('EEE', 'D') // Hours, minutes, seconds
   .replace('HH', 'H').replace('hh', 'h').replace('mm', 'i').replace('ss', 'S').replace(/a/g, 'K');
 }
-
 /**
  * Convert the format from the angular-datepicker module to moment format.
  * @param format
  * @return {string}
  */
+
+
 function convertFormatToMoment(format) {
-  return format
-  // Year conversion.
-  .replace(/y/g, 'Y')
-  // Day in month.
-  .replace(/d/g, 'D')
-  // Day in week.
-  .replace(/E/g, 'd')
-  // AM/PM marker
+  return format // Year conversion.
+  .replace(/y/g, 'Y') // Day in month.
+  .replace(/d/g, 'D') // Day in week.
+  .replace(/E/g, 'd') // AM/PM marker
   .replace(/a/g, 'A');
 }
 
 function convertFormatToMask(format) {
-  return format
-  // Short and long month replacement.
-  .replace(/(MMM|MMMM)/g, 'MM')
-  // Year conversion
-  .replace(/[ydhmsHM]/g, '9')
-  // AM/PM conversion
+  return format // Short and long month replacement.
+  .replace(/(MMM|MMMM)/g, 'MM') // Year conversion
+  .replace(/[ydhmsHM]/g, '9') // AM/PM conversion
   .replace(/a/g, 'AA');
 }
-
 /**
  * Returns an input mask that is compatible with the input mask library.
  * @param {string} mask - The Form.io input mask.
  * @returns {Array} - The input mask for the mask library.
  */
+
+
 function getInputMask(mask) {
   if (mask instanceof Array) {
     return mask;
   }
+
   var maskArray = [];
   maskArray.numeric = true;
+
   for (var i = 0; i < mask.length; i++) {
     switch (mask[i]) {
       case '9':
         maskArray.push(/\d/);
         break;
+
       case 'A':
         maskArray.numeric = false;
         maskArray.push(/[a-zA-Z]/);
         break;
+
       case 'a':
         maskArray.numeric = false;
         maskArray.push(/[a-z]/);
         break;
+
       case '*':
         maskArray.numeric = false;
         maskArray.push(/[a-zA-Z0-9]/);
         break;
+
       default:
         maskArray.push(mask[i]);
         break;
     }
   }
+
   return maskArray;
 }
 
@@ -53537,11 +57550,12 @@ function matchInputMask(value, inputMask) {
   if (!inputMask) {
     return true;
   }
+
   for (var i = 0; i < inputMask.length; i++) {
     var char = value[i];
     var charPart = inputMask[i];
 
-    if (!(_lodash2.default.isRegExp(charPart) && charPart.test(char) || charPart === char)) {
+    if (!(_lodash.default.isRegExp(charPart) && charPart.test(char) || charPart === char)) {
       return false;
     }
   }
@@ -53551,15 +57565,16 @@ function matchInputMask(value, inputMask) {
 
 function getNumberSeparators() {
   var lang = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 'en';
-
   var formattedNumberString = 12345.6789.toLocaleString(lang);
   var delimeters = formattedNumberString.match(/..(.)...(.)../);
+
   if (!delimeters) {
     return {
       delimiter: ',',
       decimalSeparator: '.'
     };
   }
+
   return {
     delimiter: delimeters.length > 1 ? delimeters[1] : ',',
     decimalSeparator: delimeters.length > 2 ? delimeters[2] : '.'
@@ -53569,10 +57584,12 @@ function getNumberSeparators() {
 function getNumberDecimalLimit(component) {
   // Determine the decimal limit. Defaults to 20 but can be overridden by validate.step or decimalLimit settings.
   var decimalLimit = 20;
-  var step = _lodash2.default.get(component, 'validate.step', 'any');
+
+  var step = _lodash.default.get(component, 'validate.step', 'any');
 
   if (step !== 'any') {
     var parts = step.toString().split('.');
+
     if (parts.length > 1) {
       decimalLimit = parts[1].length;
     }
@@ -53583,16 +57600,17 @@ function getNumberDecimalLimit(component) {
 
 function getCurrencyAffixes(_ref) {
   var _ref$currency = _ref.currency,
-      currency = _ref$currency === undefined ? 'USD' : _ref$currency,
+      currency = _ref$currency === void 0 ? 'USD' : _ref$currency,
       decimalLimit = _ref.decimalLimit,
       decimalSeparator = _ref.decimalSeparator,
       lang = _ref.lang;
-
   // Get the prefix and suffix from the localized string.
   var regex = '(.*)?100';
+
   if (decimalLimit) {
-    regex += (decimalSeparator === '.' ? '\\.' : decimalSeparator) + '0{' + decimalLimit + '}';
+    regex += "".concat(decimalSeparator === '.' ? '\\.' : decimalSeparator, "0{").concat(decimalLimit, "}");
   }
+
   regex += '(.*)?';
   var parts = 100 .toLocaleString(lang, {
     style: 'currency',
@@ -53606,7 +57624,6 @@ function getCurrencyAffixes(_ref) {
     suffix: parts[2] || ''
   };
 }
-
 /**
  * Fetch the field data provided a component.
  *
@@ -53614,48 +57631,53 @@ function getCurrencyAffixes(_ref) {
  * @param component
  * @return {*}
  */
+
+
 function fieldData(data, component) {
   if (!data) {
     return '';
   }
+
   if (!component || !component.key) {
     return data;
   }
-  if (component.key.indexOf('.') !== -1) {
+
+  if (component.key.includes('.')) {
     var value = data;
     var parts = component.key.split('.');
     var key = '';
-    for (var i = 0; i < parts.length; i++) {
-      key = parts[i];
 
-      // Handle nested resources
+    for (var i = 0; i < parts.length; i++) {
+      key = parts[i]; // Handle nested resources
+
       if (value.hasOwnProperty('_id')) {
         value = value.data;
-      }
+      } // Return if the key is not found on the value.
 
-      // Return if the key is not found on the value.
+
       if (!value.hasOwnProperty(key)) {
         return;
-      }
+      } // Convert old single field data in submissions to multiple
 
-      // Convert old single field data in submissions to multiple
+
       if (key === parts[parts.length - 1] && component.multiple && !Array.isArray(value[key])) {
         value[key] = [value[key]];
-      }
+      } // Set the value of this key.
 
-      // Set the value of this key.
+
       value = value[key];
     }
+
     return value;
   } else {
     // Convert old single field data in submissions to multiple
     if (component.multiple && !Array.isArray(data[component.key])) {
       data[component.key] = [data[component.key]];
     }
+
     return data[component.key];
   }
 }
-
 /**
  * Delays function execution with possibility to execute function synchronously or cancel it.
  *
@@ -53663,14 +57685,16 @@ function fieldData(data, component) {
  * @param delay Delay time
  * @return {*}
  */
+
+
 function delay(fn) {
-  for (var _len = arguments.length, args = Array(_len > 2 ? _len - 2 : 0), _key = 2; _key < _len; _key++) {
+  var delay = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 0;
+
+  for (var _len = arguments.length, args = new Array(_len > 2 ? _len - 2 : 0), _key = 2; _key < _len; _key++) {
     args[_key - 2] = arguments[_key];
   }
 
-  var delay = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 0;
-
-  var timer = setTimeout.apply(undefined, [fn, delay].concat(args));
+  var timer = setTimeout.apply(void 0, [fn, delay].concat(args));
 
   function cancel() {
     clearTimeout(timer);
@@ -53678,15 +57702,13 @@ function delay(fn) {
 
   function earlyCall() {
     cancel();
-    return fn.apply(undefined, args);
+    return fn.apply(void 0, args);
   }
 
   earlyCall.timer = timer;
   earlyCall.cancel = cancel;
-
   return earlyCall;
 }
-
 /**
  * Iterate the given key to make it unique.
  *
@@ -53696,16 +57718,17 @@ function delay(fn) {
  * @returns {String}
  *   The new component key.
  */
+
+
 function iterateKey(key) {
   if (!key.match(/(\d+)$/)) {
-    return key + '2';
+    return "".concat(key, "2");
   }
 
   return key.replace(/(\d+)$/, function (suffix) {
     return Number(suffix) + 1;
   });
 }
-
 /**
  * Determines a unique key within a map provided the base key.
  *
@@ -53713,14 +57736,116 @@ function iterateKey(key) {
  * @param base
  * @return {*}
  */
+
+
 function uniqueKey(map, base) {
   var newKey = base;
+
   while (map.hasOwnProperty(newKey)) {
     newKey = iterateKey(newKey);
   }
+
   return newKey;
 }
-},{"./jsonlogic/operators":34,"json-logic-js":37,"jstimezonedetect":38,"lodash":223,"moment-timezone/moment-timezone":235,"native-promise-only":237,"whatwg-fetch":248}],36:[function(_dereq_,module,exports){
+/**
+ * Determines the major version number of bootstrap.
+ *
+ * @return {number}
+ */
+
+
+function bootstrapVersion() {
+  if (typeof $ === 'function' && typeof $().collapse === 'function') {
+    return parseInt($.fn.collapse.Constructor.VERSION.split('.')[0], 10);
+  }
+
+  return 0;
+}
+/**
+ * Retrun provided argument.
+ * If argument is a function, returns the result of a function call.
+ * @param {*} e;
+ *
+ * @return {*}
+ */
+
+
+function unfold(e) {
+  if (typeof e === 'function') {
+    return e();
+  }
+
+  return e;
+}
+/**
+ * Map values through unfold and return first non-nil value.
+ * @param {Array<T>} collection;
+ *
+ * @return {T}
+ */
+
+
+var firstNonNil = _lodash.default.flow([_lodash.default.partialRight(_lodash.default.map, unfold), _lodash.default.partialRight(_lodash.default.find, function (v) {
+  return !_lodash.default.isUndefined(v);
+})]);
+/*
+ * Create enclosed state.
+ * Returns functions to getting and cycling between states.
+ * @param {*} a - initial state.
+ * @param {*} b - next state.
+ * @return {Functions[]} -- [get, toggle];
+ */
+
+
+exports.firstNonNil = firstNonNil;
+
+function withSwitch(a, b) {
+  var state = a;
+  var next = b;
+
+  function get() {
+    return state;
+  }
+
+  function toggle() {
+    var prev = state;
+    state = next;
+    next = prev;
+  }
+
+  return [get, toggle];
+}
+
+function observeOverload(callback) {
+  var options = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+  var _options$limit = options.limit,
+      limit = _options$limit === void 0 ? 50 : _options$limit,
+      _options$delay = options.delay,
+      delay = _options$delay === void 0 ? 500 : _options$delay;
+  var callCount = 0;
+  var timeoutID = 0;
+
+  var reset = function reset() {
+    return callCount = 0;
+  };
+
+  return function () {
+    if (timeoutID !== 0) {
+      clearTimeout(timeoutID);
+      timeoutID = 0;
+    }
+
+    timeoutID = setTimeout(reset, delay);
+    callCount += 1;
+
+    if (callCount >= limit) {
+      clearTimeout(timeoutID);
+      reset();
+      return callback();
+    }
+  };
+}
+},{"./formUtils":143,"./jsonlogic/operators":145,"core-js/modules/es6.array.find":104,"core-js/modules/es6.array.from":105,"core-js/modules/es6.array.iterator":106,"core-js/modules/es6.function.name":107,"core-js/modules/es6.number.constructor":108,"core-js/modules/es6.object.keys":110,"core-js/modules/es6.reflect.construct":111,"core-js/modules/es6.regexp.constructor":113,"core-js/modules/es6.regexp.match":115,"core-js/modules/es6.regexp.replace":116,"core-js/modules/es6.regexp.split":118,"core-js/modules/es6.regexp.to-string":119,"core-js/modules/es6.string.includes":120,"core-js/modules/es6.string.iterator":121,"core-js/modules/es6.symbol":122,"core-js/modules/es7.array.includes":123,"core-js/modules/es7.symbol.async-iterator":124,"core-js/modules/web.dom.iterable":125,"json-logic-js":148,"jstimezonedetect":149,"lodash":347,"moment-timezone/moment-timezone":364,"native-promise-only":366,"string-hash":373,"whatwg-fetch":378}],147:[function(_dereq_,module,exports){
 /*!
  * jQuery JavaScript Library v3.3.1
  * https://jquery.com/
@@ -64086,7 +68211,7 @@ if ( !noGlobal ) {
 return jQuery;
 } );
 
-},{}],37:[function(_dereq_,module,exports){
+},{}],148:[function(_dereq_,module,exports){
 /* globals define,module */
 /*
 Using a Universal Module Loader that should be browser, require, and AMD friendly
@@ -64552,7 +68677,7 @@ http://ricostacruz.com/cheatsheets/umdjs.html
   return jsonLogic;
 }));
 
-},{}],38:[function(_dereq_,module,exports){
+},{}],149:[function(_dereq_,module,exports){
 (function (root) {/*global exports, Intl*/
 /**
  * This script gives you the zone info key representing your device's time zone setting.
@@ -65987,7 +70112,7 @@ if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
 }
 }());
 
-},{}],39:[function(_dereq_,module,exports){
+},{}],150:[function(_dereq_,module,exports){
 var getNative = _dereq_('./_getNative'),
     root = _dereq_('./_root');
 
@@ -65996,7 +70121,7 @@ var DataView = getNative(root, 'DataView');
 
 module.exports = DataView;
 
-},{"./_getNative":131,"./_root":175}],40:[function(_dereq_,module,exports){
+},{"./_getNative":248,"./_root":292}],151:[function(_dereq_,module,exports){
 var hashClear = _dereq_('./_hashClear'),
     hashDelete = _dereq_('./_hashDelete'),
     hashGet = _dereq_('./_hashGet'),
@@ -66030,7 +70155,7 @@ Hash.prototype.set = hashSet;
 
 module.exports = Hash;
 
-},{"./_hashClear":140,"./_hashDelete":141,"./_hashGet":142,"./_hashHas":143,"./_hashSet":144}],41:[function(_dereq_,module,exports){
+},{"./_hashClear":257,"./_hashDelete":258,"./_hashGet":259,"./_hashHas":260,"./_hashSet":261}],152:[function(_dereq_,module,exports){
 var listCacheClear = _dereq_('./_listCacheClear'),
     listCacheDelete = _dereq_('./_listCacheDelete'),
     listCacheGet = _dereq_('./_listCacheGet'),
@@ -66064,7 +70189,7 @@ ListCache.prototype.set = listCacheSet;
 
 module.exports = ListCache;
 
-},{"./_listCacheClear":155,"./_listCacheDelete":156,"./_listCacheGet":157,"./_listCacheHas":158,"./_listCacheSet":159}],42:[function(_dereq_,module,exports){
+},{"./_listCacheClear":272,"./_listCacheDelete":273,"./_listCacheGet":274,"./_listCacheHas":275,"./_listCacheSet":276}],153:[function(_dereq_,module,exports){
 var getNative = _dereq_('./_getNative'),
     root = _dereq_('./_root');
 
@@ -66073,7 +70198,7 @@ var Map = getNative(root, 'Map');
 
 module.exports = Map;
 
-},{"./_getNative":131,"./_root":175}],43:[function(_dereq_,module,exports){
+},{"./_getNative":248,"./_root":292}],154:[function(_dereq_,module,exports){
 var mapCacheClear = _dereq_('./_mapCacheClear'),
     mapCacheDelete = _dereq_('./_mapCacheDelete'),
     mapCacheGet = _dereq_('./_mapCacheGet'),
@@ -66107,7 +70232,7 @@ MapCache.prototype.set = mapCacheSet;
 
 module.exports = MapCache;
 
-},{"./_mapCacheClear":160,"./_mapCacheDelete":161,"./_mapCacheGet":162,"./_mapCacheHas":163,"./_mapCacheSet":164}],44:[function(_dereq_,module,exports){
+},{"./_mapCacheClear":277,"./_mapCacheDelete":278,"./_mapCacheGet":279,"./_mapCacheHas":280,"./_mapCacheSet":281}],155:[function(_dereq_,module,exports){
 var getNative = _dereq_('./_getNative'),
     root = _dereq_('./_root');
 
@@ -66116,7 +70241,7 @@ var Promise = getNative(root, 'Promise');
 
 module.exports = Promise;
 
-},{"./_getNative":131,"./_root":175}],45:[function(_dereq_,module,exports){
+},{"./_getNative":248,"./_root":292}],156:[function(_dereq_,module,exports){
 var getNative = _dereq_('./_getNative'),
     root = _dereq_('./_root');
 
@@ -66125,7 +70250,7 @@ var Set = getNative(root, 'Set');
 
 module.exports = Set;
 
-},{"./_getNative":131,"./_root":175}],46:[function(_dereq_,module,exports){
+},{"./_getNative":248,"./_root":292}],157:[function(_dereq_,module,exports){
 var MapCache = _dereq_('./_MapCache'),
     setCacheAdd = _dereq_('./_setCacheAdd'),
     setCacheHas = _dereq_('./_setCacheHas');
@@ -66154,7 +70279,7 @@ SetCache.prototype.has = setCacheHas;
 
 module.exports = SetCache;
 
-},{"./_MapCache":43,"./_setCacheAdd":177,"./_setCacheHas":178}],47:[function(_dereq_,module,exports){
+},{"./_MapCache":154,"./_setCacheAdd":294,"./_setCacheHas":295}],158:[function(_dereq_,module,exports){
 var ListCache = _dereq_('./_ListCache'),
     stackClear = _dereq_('./_stackClear'),
     stackDelete = _dereq_('./_stackDelete'),
@@ -66183,7 +70308,7 @@ Stack.prototype.set = stackSet;
 
 module.exports = Stack;
 
-},{"./_ListCache":41,"./_stackClear":182,"./_stackDelete":183,"./_stackGet":184,"./_stackHas":185,"./_stackSet":186}],48:[function(_dereq_,module,exports){
+},{"./_ListCache":152,"./_stackClear":299,"./_stackDelete":300,"./_stackGet":301,"./_stackHas":302,"./_stackSet":303}],159:[function(_dereq_,module,exports){
 var root = _dereq_('./_root');
 
 /** Built-in value references. */
@@ -66191,7 +70316,7 @@ var Symbol = root.Symbol;
 
 module.exports = Symbol;
 
-},{"./_root":175}],49:[function(_dereq_,module,exports){
+},{"./_root":292}],160:[function(_dereq_,module,exports){
 var root = _dereq_('./_root');
 
 /** Built-in value references. */
@@ -66199,7 +70324,7 @@ var Uint8Array = root.Uint8Array;
 
 module.exports = Uint8Array;
 
-},{"./_root":175}],50:[function(_dereq_,module,exports){
+},{"./_root":292}],161:[function(_dereq_,module,exports){
 var getNative = _dereq_('./_getNative'),
     root = _dereq_('./_root');
 
@@ -66208,7 +70333,7 @@ var WeakMap = getNative(root, 'WeakMap');
 
 module.exports = WeakMap;
 
-},{"./_getNative":131,"./_root":175}],51:[function(_dereq_,module,exports){
+},{"./_getNative":248,"./_root":292}],162:[function(_dereq_,module,exports){
 /**
  * A faster alternative to `Function#apply`, this function invokes `func`
  * with the `this` binding of `thisArg` and the arguments of `args`.
@@ -66231,7 +70356,7 @@ function apply(func, thisArg, args) {
 
 module.exports = apply;
 
-},{}],52:[function(_dereq_,module,exports){
+},{}],163:[function(_dereq_,module,exports){
 /**
  * A specialized version of `_.forEach` for arrays without support for
  * iteratee shorthands.
@@ -66255,7 +70380,7 @@ function arrayEach(array, iteratee) {
 
 module.exports = arrayEach;
 
-},{}],53:[function(_dereq_,module,exports){
+},{}],164:[function(_dereq_,module,exports){
 /**
  * A specialized version of `_.filter` for arrays without support for
  * iteratee shorthands.
@@ -66282,7 +70407,7 @@ function arrayFilter(array, predicate) {
 
 module.exports = arrayFilter;
 
-},{}],54:[function(_dereq_,module,exports){
+},{}],165:[function(_dereq_,module,exports){
 var baseTimes = _dereq_('./_baseTimes'),
     isArguments = _dereq_('./isArguments'),
     isArray = _dereq_('./isArray'),
@@ -66333,7 +70458,7 @@ function arrayLikeKeys(value, inherited) {
 
 module.exports = arrayLikeKeys;
 
-},{"./_baseTimes":100,"./_isIndex":148,"./isArguments":201,"./isArray":202,"./isBuffer":205,"./isTypedArray":220}],55:[function(_dereq_,module,exports){
+},{"./_baseTimes":214,"./_isIndex":265,"./isArguments":324,"./isArray":325,"./isBuffer":328,"./isTypedArray":344}],166:[function(_dereq_,module,exports){
 /**
  * A specialized version of `_.map` for arrays without support for iteratee
  * shorthands.
@@ -66356,7 +70481,7 @@ function arrayMap(array, iteratee) {
 
 module.exports = arrayMap;
 
-},{}],56:[function(_dereq_,module,exports){
+},{}],167:[function(_dereq_,module,exports){
 /**
  * Appends the elements of `values` to `array`.
  *
@@ -66378,7 +70503,7 @@ function arrayPush(array, values) {
 
 module.exports = arrayPush;
 
-},{}],57:[function(_dereq_,module,exports){
+},{}],168:[function(_dereq_,module,exports){
 /**
  * A specialized version of `_.some` for arrays without support for iteratee
  * shorthands.
@@ -66403,7 +70528,21 @@ function arraySome(array, predicate) {
 
 module.exports = arraySome;
 
-},{}],58:[function(_dereq_,module,exports){
+},{}],169:[function(_dereq_,module,exports){
+var baseProperty = _dereq_('./_baseProperty');
+
+/**
+ * Gets the size of an ASCII `string`.
+ *
+ * @private
+ * @param {string} string The string inspect.
+ * @returns {number} Returns the string size.
+ */
+var asciiSize = baseProperty('length');
+
+module.exports = asciiSize;
+
+},{"./_baseProperty":207}],170:[function(_dereq_,module,exports){
 /**
  * Converts an ASCII `string` to an array.
  *
@@ -66417,7 +70556,7 @@ function asciiToArray(string) {
 
 module.exports = asciiToArray;
 
-},{}],59:[function(_dereq_,module,exports){
+},{}],171:[function(_dereq_,module,exports){
 var baseAssignValue = _dereq_('./_baseAssignValue'),
     eq = _dereq_('./eq');
 
@@ -66439,7 +70578,7 @@ function assignMergeValue(object, key, value) {
 
 module.exports = assignMergeValue;
 
-},{"./_baseAssignValue":64,"./eq":196}],60:[function(_dereq_,module,exports){
+},{"./_baseAssignValue":176,"./eq":317}],172:[function(_dereq_,module,exports){
 var baseAssignValue = _dereq_('./_baseAssignValue'),
     eq = _dereq_('./eq');
 
@@ -66469,7 +70608,7 @@ function assignValue(object, key, value) {
 
 module.exports = assignValue;
 
-},{"./_baseAssignValue":64,"./eq":196}],61:[function(_dereq_,module,exports){
+},{"./_baseAssignValue":176,"./eq":317}],173:[function(_dereq_,module,exports){
 var eq = _dereq_('./eq');
 
 /**
@@ -66492,7 +70631,7 @@ function assocIndexOf(array, key) {
 
 module.exports = assocIndexOf;
 
-},{"./eq":196}],62:[function(_dereq_,module,exports){
+},{"./eq":317}],174:[function(_dereq_,module,exports){
 var copyObject = _dereq_('./_copyObject'),
     keys = _dereq_('./keys');
 
@@ -66511,7 +70650,7 @@ function baseAssign(object, source) {
 
 module.exports = baseAssign;
 
-},{"./_copyObject":115,"./keys":221}],63:[function(_dereq_,module,exports){
+},{"./_copyObject":230,"./keys":345}],175:[function(_dereq_,module,exports){
 var copyObject = _dereq_('./_copyObject'),
     keysIn = _dereq_('./keysIn');
 
@@ -66530,7 +70669,7 @@ function baseAssignIn(object, source) {
 
 module.exports = baseAssignIn;
 
-},{"./_copyObject":115,"./keysIn":222}],64:[function(_dereq_,module,exports){
+},{"./_copyObject":230,"./keysIn":346}],176:[function(_dereq_,module,exports){
 var defineProperty = _dereq_('./_defineProperty');
 
 /**
@@ -66557,7 +70696,7 @@ function baseAssignValue(object, key, value) {
 
 module.exports = baseAssignValue;
 
-},{"./_defineProperty":122}],65:[function(_dereq_,module,exports){
+},{"./_defineProperty":239}],177:[function(_dereq_,module,exports){
 var Stack = _dereq_('./_Stack'),
     arrayEach = _dereq_('./_arrayEach'),
     assignValue = _dereq_('./_assignValue'),
@@ -66730,7 +70869,7 @@ function baseClone(value, bitmask, customizer, key, object, stack) {
 
 module.exports = baseClone;
 
-},{"./_Stack":47,"./_arrayEach":52,"./_assignValue":60,"./_baseAssign":62,"./_baseAssignIn":63,"./_cloneBuffer":109,"./_copyArray":114,"./_copySymbols":116,"./_copySymbolsIn":117,"./_getAllKeys":127,"./_getAllKeysIn":128,"./_getTag":136,"./_initCloneArray":145,"./_initCloneByTag":146,"./_initCloneObject":147,"./isArray":202,"./isBuffer":205,"./isMap":211,"./isObject":215,"./isSet":218,"./keys":221}],66:[function(_dereq_,module,exports){
+},{"./_Stack":158,"./_arrayEach":163,"./_assignValue":172,"./_baseAssign":174,"./_baseAssignIn":175,"./_cloneBuffer":224,"./_copyArray":229,"./_copySymbols":231,"./_copySymbolsIn":232,"./_getAllKeys":244,"./_getAllKeysIn":245,"./_getTag":253,"./_initCloneArray":262,"./_initCloneByTag":263,"./_initCloneObject":264,"./isArray":325,"./isBuffer":328,"./isMap":334,"./isObject":338,"./isSet":341,"./keys":345}],178:[function(_dereq_,module,exports){
 var isObject = _dereq_('./isObject');
 
 /** Built-in value references. */
@@ -66762,7 +70901,7 @@ var baseCreate = (function() {
 
 module.exports = baseCreate;
 
-},{"./isObject":215}],67:[function(_dereq_,module,exports){
+},{"./isObject":338}],179:[function(_dereq_,module,exports){
 var baseForOwn = _dereq_('./_baseForOwn'),
     createBaseEach = _dereq_('./_createBaseEach');
 
@@ -66778,7 +70917,7 @@ var baseEach = createBaseEach(baseForOwn);
 
 module.exports = baseEach;
 
-},{"./_baseForOwn":71,"./_createBaseEach":120}],68:[function(_dereq_,module,exports){
+},{"./_baseForOwn":183,"./_createBaseEach":235}],180:[function(_dereq_,module,exports){
 var baseEach = _dereq_('./_baseEach');
 
 /**
@@ -66801,7 +70940,7 @@ function baseFilter(collection, predicate) {
 
 module.exports = baseFilter;
 
-},{"./_baseEach":67}],69:[function(_dereq_,module,exports){
+},{"./_baseEach":179}],181:[function(_dereq_,module,exports){
 /**
  * The base implementation of `_.findIndex` and `_.findLastIndex` without
  * support for iteratee shorthands.
@@ -66827,7 +70966,7 @@ function baseFindIndex(array, predicate, fromIndex, fromRight) {
 
 module.exports = baseFindIndex;
 
-},{}],70:[function(_dereq_,module,exports){
+},{}],182:[function(_dereq_,module,exports){
 var createBaseFor = _dereq_('./_createBaseFor');
 
 /**
@@ -66845,7 +70984,7 @@ var baseFor = createBaseFor();
 
 module.exports = baseFor;
 
-},{"./_createBaseFor":121}],71:[function(_dereq_,module,exports){
+},{"./_createBaseFor":236}],183:[function(_dereq_,module,exports){
 var baseFor = _dereq_('./_baseFor'),
     keys = _dereq_('./keys');
 
@@ -66863,7 +71002,7 @@ function baseForOwn(object, iteratee) {
 
 module.exports = baseForOwn;
 
-},{"./_baseFor":70,"./keys":221}],72:[function(_dereq_,module,exports){
+},{"./_baseFor":182,"./keys":345}],184:[function(_dereq_,module,exports){
 var castPath = _dereq_('./_castPath'),
     toKey = _dereq_('./_toKey');
 
@@ -66889,7 +71028,7 @@ function baseGet(object, path) {
 
 module.exports = baseGet;
 
-},{"./_castPath":104,"./_toKey":190}],73:[function(_dereq_,module,exports){
+},{"./_castPath":219,"./_toKey":308}],185:[function(_dereq_,module,exports){
 var arrayPush = _dereq_('./_arrayPush'),
     isArray = _dereq_('./isArray');
 
@@ -66911,7 +71050,7 @@ function baseGetAllKeys(object, keysFunc, symbolsFunc) {
 
 module.exports = baseGetAllKeys;
 
-},{"./_arrayPush":56,"./isArray":202}],74:[function(_dereq_,module,exports){
+},{"./_arrayPush":167,"./isArray":325}],186:[function(_dereq_,module,exports){
 var Symbol = _dereq_('./_Symbol'),
     getRawTag = _dereq_('./_getRawTag'),
     objectToString = _dereq_('./_objectToString');
@@ -66941,7 +71080,28 @@ function baseGetTag(value) {
 
 module.exports = baseGetTag;
 
-},{"./_Symbol":48,"./_getRawTag":133,"./_objectToString":172}],75:[function(_dereq_,module,exports){
+},{"./_Symbol":159,"./_getRawTag":250,"./_objectToString":289}],187:[function(_dereq_,module,exports){
+/** Used for built-in method references. */
+var objectProto = Object.prototype;
+
+/** Used to check objects for own properties. */
+var hasOwnProperty = objectProto.hasOwnProperty;
+
+/**
+ * The base implementation of `_.has` without support for deep paths.
+ *
+ * @private
+ * @param {Object} [object] The object to query.
+ * @param {Array|string} key The key to check.
+ * @returns {boolean} Returns `true` if `key` exists, else `false`.
+ */
+function baseHas(object, key) {
+  return object != null && hasOwnProperty.call(object, key);
+}
+
+module.exports = baseHas;
+
+},{}],188:[function(_dereq_,module,exports){
 /**
  * The base implementation of `_.hasIn` without support for deep paths.
  *
@@ -66956,7 +71116,7 @@ function baseHasIn(object, key) {
 
 module.exports = baseHasIn;
 
-},{}],76:[function(_dereq_,module,exports){
+},{}],189:[function(_dereq_,module,exports){
 var baseFindIndex = _dereq_('./_baseFindIndex'),
     baseIsNaN = _dereq_('./_baseIsNaN'),
     strictIndexOf = _dereq_('./_strictIndexOf');
@@ -66978,7 +71138,7 @@ function baseIndexOf(array, value, fromIndex) {
 
 module.exports = baseIndexOf;
 
-},{"./_baseFindIndex":69,"./_baseIsNaN":82,"./_strictIndexOf":187}],77:[function(_dereq_,module,exports){
+},{"./_baseFindIndex":181,"./_baseIsNaN":195,"./_strictIndexOf":304}],190:[function(_dereq_,module,exports){
 var baseGetTag = _dereq_('./_baseGetTag'),
     isObjectLike = _dereq_('./isObjectLike');
 
@@ -66998,7 +71158,7 @@ function baseIsArguments(value) {
 
 module.exports = baseIsArguments;
 
-},{"./_baseGetTag":74,"./isObjectLike":216}],78:[function(_dereq_,module,exports){
+},{"./_baseGetTag":186,"./isObjectLike":339}],191:[function(_dereq_,module,exports){
 var baseIsEqualDeep = _dereq_('./_baseIsEqualDeep'),
     isObjectLike = _dereq_('./isObjectLike');
 
@@ -67028,7 +71188,7 @@ function baseIsEqual(value, other, bitmask, customizer, stack) {
 
 module.exports = baseIsEqual;
 
-},{"./_baseIsEqualDeep":79,"./isObjectLike":216}],79:[function(_dereq_,module,exports){
+},{"./_baseIsEqualDeep":192,"./isObjectLike":339}],192:[function(_dereq_,module,exports){
 var Stack = _dereq_('./_Stack'),
     equalArrays = _dereq_('./_equalArrays'),
     equalByTag = _dereq_('./_equalByTag'),
@@ -67113,7 +71273,7 @@ function baseIsEqualDeep(object, other, bitmask, customizer, equalFunc, stack) {
 
 module.exports = baseIsEqualDeep;
 
-},{"./_Stack":47,"./_equalArrays":123,"./_equalByTag":124,"./_equalObjects":125,"./_getTag":136,"./isArray":202,"./isBuffer":205,"./isTypedArray":220}],80:[function(_dereq_,module,exports){
+},{"./_Stack":158,"./_equalArrays":240,"./_equalByTag":241,"./_equalObjects":242,"./_getTag":253,"./isArray":325,"./isBuffer":328,"./isTypedArray":344}],193:[function(_dereq_,module,exports){
 var getTag = _dereq_('./_getTag'),
     isObjectLike = _dereq_('./isObjectLike');
 
@@ -67133,7 +71293,7 @@ function baseIsMap(value) {
 
 module.exports = baseIsMap;
 
-},{"./_getTag":136,"./isObjectLike":216}],81:[function(_dereq_,module,exports){
+},{"./_getTag":253,"./isObjectLike":339}],194:[function(_dereq_,module,exports){
 var Stack = _dereq_('./_Stack'),
     baseIsEqual = _dereq_('./_baseIsEqual');
 
@@ -67197,7 +71357,7 @@ function baseIsMatch(object, source, matchData, customizer) {
 
 module.exports = baseIsMatch;
 
-},{"./_Stack":47,"./_baseIsEqual":78}],82:[function(_dereq_,module,exports){
+},{"./_Stack":158,"./_baseIsEqual":191}],195:[function(_dereq_,module,exports){
 /**
  * The base implementation of `_.isNaN` without support for number objects.
  *
@@ -67211,7 +71371,7 @@ function baseIsNaN(value) {
 
 module.exports = baseIsNaN;
 
-},{}],83:[function(_dereq_,module,exports){
+},{}],196:[function(_dereq_,module,exports){
 var isFunction = _dereq_('./isFunction'),
     isMasked = _dereq_('./_isMasked'),
     isObject = _dereq_('./isObject'),
@@ -67260,7 +71420,7 @@ function baseIsNative(value) {
 
 module.exports = baseIsNative;
 
-},{"./_isMasked":152,"./_toSource":191,"./isFunction":209,"./isObject":215}],84:[function(_dereq_,module,exports){
+},{"./_isMasked":269,"./_toSource":309,"./isFunction":332,"./isObject":338}],197:[function(_dereq_,module,exports){
 var getTag = _dereq_('./_getTag'),
     isObjectLike = _dereq_('./isObjectLike');
 
@@ -67280,7 +71440,7 @@ function baseIsSet(value) {
 
 module.exports = baseIsSet;
 
-},{"./_getTag":136,"./isObjectLike":216}],85:[function(_dereq_,module,exports){
+},{"./_getTag":253,"./isObjectLike":339}],198:[function(_dereq_,module,exports){
 var baseGetTag = _dereq_('./_baseGetTag'),
     isLength = _dereq_('./isLength'),
     isObjectLike = _dereq_('./isObjectLike');
@@ -67342,7 +71502,7 @@ function baseIsTypedArray(value) {
 
 module.exports = baseIsTypedArray;
 
-},{"./_baseGetTag":74,"./isLength":210,"./isObjectLike":216}],86:[function(_dereq_,module,exports){
+},{"./_baseGetTag":186,"./isLength":333,"./isObjectLike":339}],199:[function(_dereq_,module,exports){
 var baseMatches = _dereq_('./_baseMatches'),
     baseMatchesProperty = _dereq_('./_baseMatchesProperty'),
     identity = _dereq_('./identity'),
@@ -67375,7 +71535,7 @@ function baseIteratee(value) {
 
 module.exports = baseIteratee;
 
-},{"./_baseMatches":90,"./_baseMatchesProperty":91,"./identity":200,"./isArray":202,"./property":228}],87:[function(_dereq_,module,exports){
+},{"./_baseMatches":203,"./_baseMatchesProperty":204,"./identity":323,"./isArray":325,"./property":353}],200:[function(_dereq_,module,exports){
 var isPrototype = _dereq_('./_isPrototype'),
     nativeKeys = _dereq_('./_nativeKeys');
 
@@ -67407,7 +71567,7 @@ function baseKeys(object) {
 
 module.exports = baseKeys;
 
-},{"./_isPrototype":153,"./_nativeKeys":169}],88:[function(_dereq_,module,exports){
+},{"./_isPrototype":270,"./_nativeKeys":286}],201:[function(_dereq_,module,exports){
 var isObject = _dereq_('./isObject'),
     isPrototype = _dereq_('./_isPrototype'),
     nativeKeysIn = _dereq_('./_nativeKeysIn');
@@ -67442,7 +71602,7 @@ function baseKeysIn(object) {
 
 module.exports = baseKeysIn;
 
-},{"./_isPrototype":153,"./_nativeKeysIn":170,"./isObject":215}],89:[function(_dereq_,module,exports){
+},{"./_isPrototype":270,"./_nativeKeysIn":287,"./isObject":338}],202:[function(_dereq_,module,exports){
 var baseEach = _dereq_('./_baseEach'),
     isArrayLike = _dereq_('./isArrayLike');
 
@@ -67466,7 +71626,7 @@ function baseMap(collection, iteratee) {
 
 module.exports = baseMap;
 
-},{"./_baseEach":67,"./isArrayLike":203}],90:[function(_dereq_,module,exports){
+},{"./_baseEach":179,"./isArrayLike":326}],203:[function(_dereq_,module,exports){
 var baseIsMatch = _dereq_('./_baseIsMatch'),
     getMatchData = _dereq_('./_getMatchData'),
     matchesStrictComparable = _dereq_('./_matchesStrictComparable');
@@ -67490,7 +71650,7 @@ function baseMatches(source) {
 
 module.exports = baseMatches;
 
-},{"./_baseIsMatch":81,"./_getMatchData":130,"./_matchesStrictComparable":166}],91:[function(_dereq_,module,exports){
+},{"./_baseIsMatch":194,"./_getMatchData":247,"./_matchesStrictComparable":283}],204:[function(_dereq_,module,exports){
 var baseIsEqual = _dereq_('./_baseIsEqual'),
     get = _dereq_('./get'),
     hasIn = _dereq_('./hasIn'),
@@ -67525,7 +71685,7 @@ function baseMatchesProperty(path, srcValue) {
 
 module.exports = baseMatchesProperty;
 
-},{"./_baseIsEqual":78,"./_isKey":150,"./_isStrictComparable":154,"./_matchesStrictComparable":166,"./_toKey":190,"./get":198,"./hasIn":199}],92:[function(_dereq_,module,exports){
+},{"./_baseIsEqual":191,"./_isKey":267,"./_isStrictComparable":271,"./_matchesStrictComparable":283,"./_toKey":308,"./get":320,"./hasIn":322}],205:[function(_dereq_,module,exports){
 var Stack = _dereq_('./_Stack'),
     assignMergeValue = _dereq_('./_assignMergeValue'),
     baseFor = _dereq_('./_baseFor'),
@@ -67569,7 +71729,7 @@ function baseMerge(object, source, srcIndex, customizer, stack) {
 
 module.exports = baseMerge;
 
-},{"./_Stack":47,"./_assignMergeValue":59,"./_baseFor":70,"./_baseMergeDeep":93,"./_safeGet":176,"./isObject":215,"./keysIn":222}],93:[function(_dereq_,module,exports){
+},{"./_Stack":158,"./_assignMergeValue":171,"./_baseFor":182,"./_baseMergeDeep":206,"./_safeGet":293,"./isObject":338,"./keysIn":346}],206:[function(_dereq_,module,exports){
 var assignMergeValue = _dereq_('./_assignMergeValue'),
     cloneBuffer = _dereq_('./_cloneBuffer'),
     cloneTypedArray = _dereq_('./_cloneTypedArray'),
@@ -67646,7 +71806,7 @@ function baseMergeDeep(object, source, key, srcIndex, mergeFunc, customizer, sta
       if (isArguments(objValue)) {
         newValue = toPlainObject(objValue);
       }
-      else if (!isObject(objValue) || (srcIndex && isFunction(objValue))) {
+      else if (!isObject(objValue) || isFunction(objValue)) {
         newValue = initCloneObject(srcValue);
       }
     }
@@ -67665,7 +71825,7 @@ function baseMergeDeep(object, source, key, srcIndex, mergeFunc, customizer, sta
 
 module.exports = baseMergeDeep;
 
-},{"./_assignMergeValue":59,"./_cloneBuffer":109,"./_cloneTypedArray":113,"./_copyArray":114,"./_initCloneObject":147,"./_safeGet":176,"./isArguments":201,"./isArray":202,"./isArrayLikeObject":204,"./isBuffer":205,"./isFunction":209,"./isObject":215,"./isPlainObject":217,"./isTypedArray":220,"./toPlainObject":232}],94:[function(_dereq_,module,exports){
+},{"./_assignMergeValue":171,"./_cloneBuffer":224,"./_cloneTypedArray":228,"./_copyArray":229,"./_initCloneObject":264,"./_safeGet":293,"./isArguments":324,"./isArray":325,"./isArrayLikeObject":327,"./isBuffer":328,"./isFunction":332,"./isObject":338,"./isPlainObject":340,"./isTypedArray":344,"./toPlainObject":361}],207:[function(_dereq_,module,exports){
 /**
  * The base implementation of `_.property` without support for deep paths.
  *
@@ -67681,7 +71841,7 @@ function baseProperty(key) {
 
 module.exports = baseProperty;
 
-},{}],95:[function(_dereq_,module,exports){
+},{}],208:[function(_dereq_,module,exports){
 var baseGet = _dereq_('./_baseGet');
 
 /**
@@ -67699,7 +71859,44 @@ function basePropertyDeep(path) {
 
 module.exports = basePropertyDeep;
 
-},{"./_baseGet":72}],96:[function(_dereq_,module,exports){
+},{"./_baseGet":184}],209:[function(_dereq_,module,exports){
+/** Used as references for various `Number` constants. */
+var MAX_SAFE_INTEGER = 9007199254740991;
+
+/* Built-in method references for those with the same name as other `lodash` methods. */
+var nativeFloor = Math.floor;
+
+/**
+ * The base implementation of `_.repeat` which doesn't coerce arguments.
+ *
+ * @private
+ * @param {string} string The string to repeat.
+ * @param {number} n The number of times to repeat the string.
+ * @returns {string} Returns the repeated string.
+ */
+function baseRepeat(string, n) {
+  var result = '';
+  if (!string || n < 1 || n > MAX_SAFE_INTEGER) {
+    return result;
+  }
+  // Leverage the exponentiation by squaring algorithm for a faster repeat.
+  // See https://en.wikipedia.org/wiki/Exponentiation_by_squaring for more details.
+  do {
+    if (n % 2) {
+      result += string;
+    }
+    n = nativeFloor(n / 2);
+    if (n) {
+      string += string;
+    }
+  } while (n);
+
+  return result;
+}
+
+module.exports = baseRepeat;
+
+},{}],210:[function(_dereq_,module,exports){
 var identity = _dereq_('./identity'),
     overRest = _dereq_('./_overRest'),
     setToString = _dereq_('./_setToString');
@@ -67718,7 +71915,7 @@ function baseRest(func, start) {
 
 module.exports = baseRest;
 
-},{"./_overRest":174,"./_setToString":180,"./identity":200}],97:[function(_dereq_,module,exports){
+},{"./_overRest":291,"./_setToString":297,"./identity":323}],211:[function(_dereq_,module,exports){
 var assignValue = _dereq_('./_assignValue'),
     castPath = _dereq_('./_castPath'),
     isIndex = _dereq_('./_isIndex'),
@@ -67767,7 +71964,7 @@ function baseSet(object, path, value, customizer) {
 
 module.exports = baseSet;
 
-},{"./_assignValue":60,"./_castPath":104,"./_isIndex":148,"./_toKey":190,"./isObject":215}],98:[function(_dereq_,module,exports){
+},{"./_assignValue":172,"./_castPath":219,"./_isIndex":265,"./_toKey":308,"./isObject":338}],212:[function(_dereq_,module,exports){
 var constant = _dereq_('./constant'),
     defineProperty = _dereq_('./_defineProperty'),
     identity = _dereq_('./identity');
@@ -67791,7 +71988,7 @@ var baseSetToString = !defineProperty ? identity : function(func, string) {
 
 module.exports = baseSetToString;
 
-},{"./_defineProperty":122,"./constant":195,"./identity":200}],99:[function(_dereq_,module,exports){
+},{"./_defineProperty":239,"./constant":316,"./identity":323}],213:[function(_dereq_,module,exports){
 /**
  * The base implementation of `_.slice` without an iteratee call guard.
  *
@@ -67824,7 +72021,7 @@ function baseSlice(array, start, end) {
 
 module.exports = baseSlice;
 
-},{}],100:[function(_dereq_,module,exports){
+},{}],214:[function(_dereq_,module,exports){
 /**
  * The base implementation of `_.times` without support for iteratee shorthands
  * or max array length checks.
@@ -67846,7 +72043,7 @@ function baseTimes(n, iteratee) {
 
 module.exports = baseTimes;
 
-},{}],101:[function(_dereq_,module,exports){
+},{}],215:[function(_dereq_,module,exports){
 var Symbol = _dereq_('./_Symbol'),
     arrayMap = _dereq_('./_arrayMap'),
     isArray = _dereq_('./isArray'),
@@ -67885,7 +72082,7 @@ function baseToString(value) {
 
 module.exports = baseToString;
 
-},{"./_Symbol":48,"./_arrayMap":55,"./isArray":202,"./isSymbol":219}],102:[function(_dereq_,module,exports){
+},{"./_Symbol":159,"./_arrayMap":166,"./isArray":325,"./isSymbol":343}],216:[function(_dereq_,module,exports){
 /**
  * The base implementation of `_.unary` without support for storing metadata.
  *
@@ -67901,7 +72098,7 @@ function baseUnary(func) {
 
 module.exports = baseUnary;
 
-},{}],103:[function(_dereq_,module,exports){
+},{}],217:[function(_dereq_,module,exports){
 /**
  * Checks if a `cache` value for `key` exists.
  *
@@ -67916,7 +72113,23 @@ function cacheHas(cache, key) {
 
 module.exports = cacheHas;
 
-},{}],104:[function(_dereq_,module,exports){
+},{}],218:[function(_dereq_,module,exports){
+var identity = _dereq_('./identity');
+
+/**
+ * Casts `value` to `identity` if it's not a function.
+ *
+ * @private
+ * @param {*} value The value to inspect.
+ * @returns {Function} Returns cast function.
+ */
+function castFunction(value) {
+  return typeof value == 'function' ? value : identity;
+}
+
+module.exports = castFunction;
+
+},{"./identity":323}],219:[function(_dereq_,module,exports){
 var isArray = _dereq_('./isArray'),
     isKey = _dereq_('./_isKey'),
     stringToPath = _dereq_('./_stringToPath'),
@@ -67939,7 +72152,7 @@ function castPath(value, object) {
 
 module.exports = castPath;
 
-},{"./_isKey":150,"./_stringToPath":189,"./isArray":202,"./toString":233}],105:[function(_dereq_,module,exports){
+},{"./_isKey":267,"./_stringToPath":307,"./isArray":325,"./toString":362}],220:[function(_dereq_,module,exports){
 var baseSlice = _dereq_('./_baseSlice');
 
 /**
@@ -67959,7 +72172,7 @@ function castSlice(array, start, end) {
 
 module.exports = castSlice;
 
-},{"./_baseSlice":99}],106:[function(_dereq_,module,exports){
+},{"./_baseSlice":213}],221:[function(_dereq_,module,exports){
 var baseIndexOf = _dereq_('./_baseIndexOf');
 
 /**
@@ -67980,7 +72193,7 @@ function charsEndIndex(strSymbols, chrSymbols) {
 
 module.exports = charsEndIndex;
 
-},{"./_baseIndexOf":76}],107:[function(_dereq_,module,exports){
+},{"./_baseIndexOf":189}],222:[function(_dereq_,module,exports){
 var baseIndexOf = _dereq_('./_baseIndexOf');
 
 /**
@@ -68002,7 +72215,7 @@ function charsStartIndex(strSymbols, chrSymbols) {
 
 module.exports = charsStartIndex;
 
-},{"./_baseIndexOf":76}],108:[function(_dereq_,module,exports){
+},{"./_baseIndexOf":189}],223:[function(_dereq_,module,exports){
 var Uint8Array = _dereq_('./_Uint8Array');
 
 /**
@@ -68020,7 +72233,7 @@ function cloneArrayBuffer(arrayBuffer) {
 
 module.exports = cloneArrayBuffer;
 
-},{"./_Uint8Array":49}],109:[function(_dereq_,module,exports){
+},{"./_Uint8Array":160}],224:[function(_dereq_,module,exports){
 var root = _dereq_('./_root');
 
 /** Detect free variable `exports`. */
@@ -68057,7 +72270,7 @@ function cloneBuffer(buffer, isDeep) {
 
 module.exports = cloneBuffer;
 
-},{"./_root":175}],110:[function(_dereq_,module,exports){
+},{"./_root":292}],225:[function(_dereq_,module,exports){
 var cloneArrayBuffer = _dereq_('./_cloneArrayBuffer');
 
 /**
@@ -68075,7 +72288,7 @@ function cloneDataView(dataView, isDeep) {
 
 module.exports = cloneDataView;
 
-},{"./_cloneArrayBuffer":108}],111:[function(_dereq_,module,exports){
+},{"./_cloneArrayBuffer":223}],226:[function(_dereq_,module,exports){
 /** Used to match `RegExp` flags from their coerced string values. */
 var reFlags = /\w*$/;
 
@@ -68094,7 +72307,7 @@ function cloneRegExp(regexp) {
 
 module.exports = cloneRegExp;
 
-},{}],112:[function(_dereq_,module,exports){
+},{}],227:[function(_dereq_,module,exports){
 var Symbol = _dereq_('./_Symbol');
 
 /** Used to convert symbols to primitives and strings. */
@@ -68114,7 +72327,7 @@ function cloneSymbol(symbol) {
 
 module.exports = cloneSymbol;
 
-},{"./_Symbol":48}],113:[function(_dereq_,module,exports){
+},{"./_Symbol":159}],228:[function(_dereq_,module,exports){
 var cloneArrayBuffer = _dereq_('./_cloneArrayBuffer');
 
 /**
@@ -68132,7 +72345,7 @@ function cloneTypedArray(typedArray, isDeep) {
 
 module.exports = cloneTypedArray;
 
-},{"./_cloneArrayBuffer":108}],114:[function(_dereq_,module,exports){
+},{"./_cloneArrayBuffer":223}],229:[function(_dereq_,module,exports){
 /**
  * Copies the values of `source` to `array`.
  *
@@ -68154,7 +72367,7 @@ function copyArray(source, array) {
 
 module.exports = copyArray;
 
-},{}],115:[function(_dereq_,module,exports){
+},{}],230:[function(_dereq_,module,exports){
 var assignValue = _dereq_('./_assignValue'),
     baseAssignValue = _dereq_('./_baseAssignValue');
 
@@ -68196,7 +72409,7 @@ function copyObject(source, props, object, customizer) {
 
 module.exports = copyObject;
 
-},{"./_assignValue":60,"./_baseAssignValue":64}],116:[function(_dereq_,module,exports){
+},{"./_assignValue":172,"./_baseAssignValue":176}],231:[function(_dereq_,module,exports){
 var copyObject = _dereq_('./_copyObject'),
     getSymbols = _dereq_('./_getSymbols');
 
@@ -68214,7 +72427,7 @@ function copySymbols(source, object) {
 
 module.exports = copySymbols;
 
-},{"./_copyObject":115,"./_getSymbols":134}],117:[function(_dereq_,module,exports){
+},{"./_copyObject":230,"./_getSymbols":251}],232:[function(_dereq_,module,exports){
 var copyObject = _dereq_('./_copyObject'),
     getSymbolsIn = _dereq_('./_getSymbolsIn');
 
@@ -68232,7 +72445,7 @@ function copySymbolsIn(source, object) {
 
 module.exports = copySymbolsIn;
 
-},{"./_copyObject":115,"./_getSymbolsIn":135}],118:[function(_dereq_,module,exports){
+},{"./_copyObject":230,"./_getSymbolsIn":252}],233:[function(_dereq_,module,exports){
 var root = _dereq_('./_root');
 
 /** Used to detect overreaching core-js shims. */
@@ -68240,7 +72453,7 @@ var coreJsData = root['__core-js_shared__'];
 
 module.exports = coreJsData;
 
-},{"./_root":175}],119:[function(_dereq_,module,exports){
+},{"./_root":292}],234:[function(_dereq_,module,exports){
 var baseRest = _dereq_('./_baseRest'),
     isIterateeCall = _dereq_('./_isIterateeCall');
 
@@ -68279,7 +72492,7 @@ function createAssigner(assigner) {
 
 module.exports = createAssigner;
 
-},{"./_baseRest":96,"./_isIterateeCall":149}],120:[function(_dereq_,module,exports){
+},{"./_baseRest":210,"./_isIterateeCall":266}],235:[function(_dereq_,module,exports){
 var isArrayLike = _dereq_('./isArrayLike');
 
 /**
@@ -68313,7 +72526,7 @@ function createBaseEach(eachFunc, fromRight) {
 
 module.exports = createBaseEach;
 
-},{"./isArrayLike":203}],121:[function(_dereq_,module,exports){
+},{"./isArrayLike":326}],236:[function(_dereq_,module,exports){
 /**
  * Creates a base function for methods like `_.forIn` and `_.forOwn`.
  *
@@ -68340,7 +72553,77 @@ function createBaseFor(fromRight) {
 
 module.exports = createBaseFor;
 
-},{}],122:[function(_dereq_,module,exports){
+},{}],237:[function(_dereq_,module,exports){
+var baseRepeat = _dereq_('./_baseRepeat'),
+    baseToString = _dereq_('./_baseToString'),
+    castSlice = _dereq_('./_castSlice'),
+    hasUnicode = _dereq_('./_hasUnicode'),
+    stringSize = _dereq_('./_stringSize'),
+    stringToArray = _dereq_('./_stringToArray');
+
+/* Built-in method references for those with the same name as other `lodash` methods. */
+var nativeCeil = Math.ceil;
+
+/**
+ * Creates the padding for `string` based on `length`. The `chars` string
+ * is truncated if the number of characters exceeds `length`.
+ *
+ * @private
+ * @param {number} length The padding length.
+ * @param {string} [chars=' '] The string used as padding.
+ * @returns {string} Returns the padding for `string`.
+ */
+function createPadding(length, chars) {
+  chars = chars === undefined ? ' ' : baseToString(chars);
+
+  var charsLength = chars.length;
+  if (charsLength < 2) {
+    return charsLength ? baseRepeat(chars, length) : chars;
+  }
+  var result = baseRepeat(chars, nativeCeil(length / stringSize(chars)));
+  return hasUnicode(chars)
+    ? castSlice(stringToArray(result), 0, length).join('')
+    : result.slice(0, length);
+}
+
+module.exports = createPadding;
+
+},{"./_baseRepeat":209,"./_baseToString":215,"./_castSlice":220,"./_hasUnicode":256,"./_stringSize":305,"./_stringToArray":306}],238:[function(_dereq_,module,exports){
+var toInteger = _dereq_('./toInteger'),
+    toNumber = _dereq_('./toNumber'),
+    toString = _dereq_('./toString');
+
+/* Built-in method references for those with the same name as other `lodash` methods. */
+var nativeMin = Math.min;
+
+/**
+ * Creates a function like `_.round`.
+ *
+ * @private
+ * @param {string} methodName The name of the `Math` method to use when rounding.
+ * @returns {Function} Returns the new round function.
+ */
+function createRound(methodName) {
+  var func = Math[methodName];
+  return function(number, precision) {
+    number = toNumber(number);
+    precision = precision == null ? 0 : nativeMin(toInteger(precision), 292);
+    if (precision) {
+      // Shift with exponential notation to avoid floating-point issues.
+      // See [MDN](https://mdn.io/round#Examples) for more details.
+      var pair = (toString(number) + 'e').split('e'),
+          value = func(pair[0] + 'e' + (+pair[1] + precision));
+
+      pair = (toString(value) + 'e').split('e');
+      return +(pair[0] + 'e' + (+pair[1] - precision));
+    }
+    return func(number);
+  };
+}
+
+module.exports = createRound;
+
+},{"./toInteger":359,"./toNumber":360,"./toString":362}],239:[function(_dereq_,module,exports){
 var getNative = _dereq_('./_getNative');
 
 var defineProperty = (function() {
@@ -68353,7 +72636,7 @@ var defineProperty = (function() {
 
 module.exports = defineProperty;
 
-},{"./_getNative":131}],123:[function(_dereq_,module,exports){
+},{"./_getNative":248}],240:[function(_dereq_,module,exports){
 var SetCache = _dereq_('./_SetCache'),
     arraySome = _dereq_('./_arraySome'),
     cacheHas = _dereq_('./_cacheHas');
@@ -68438,7 +72721,7 @@ function equalArrays(array, other, bitmask, customizer, equalFunc, stack) {
 
 module.exports = equalArrays;
 
-},{"./_SetCache":46,"./_arraySome":57,"./_cacheHas":103}],124:[function(_dereq_,module,exports){
+},{"./_SetCache":157,"./_arraySome":168,"./_cacheHas":217}],241:[function(_dereq_,module,exports){
 var Symbol = _dereq_('./_Symbol'),
     Uint8Array = _dereq_('./_Uint8Array'),
     eq = _dereq_('./eq'),
@@ -68552,7 +72835,7 @@ function equalByTag(object, other, tag, bitmask, customizer, equalFunc, stack) {
 
 module.exports = equalByTag;
 
-},{"./_Symbol":48,"./_Uint8Array":49,"./_equalArrays":123,"./_mapToArray":165,"./_setToArray":179,"./eq":196}],125:[function(_dereq_,module,exports){
+},{"./_Symbol":159,"./_Uint8Array":160,"./_equalArrays":240,"./_mapToArray":282,"./_setToArray":296,"./eq":317}],242:[function(_dereq_,module,exports){
 var getAllKeys = _dereq_('./_getAllKeys');
 
 /** Used to compose bitmasks for value comparisons. */
@@ -68643,7 +72926,7 @@ function equalObjects(object, other, bitmask, customizer, equalFunc, stack) {
 
 module.exports = equalObjects;
 
-},{"./_getAllKeys":127}],126:[function(_dereq_,module,exports){
+},{"./_getAllKeys":244}],243:[function(_dereq_,module,exports){
 (function (global){
 /** Detect free variable `global` from Node.js. */
 var freeGlobal = typeof global == 'object' && global && global.Object === Object && global;
@@ -68651,7 +72934,7 @@ var freeGlobal = typeof global == 'object' && global && global.Object === Object
 module.exports = freeGlobal;
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],127:[function(_dereq_,module,exports){
+},{}],244:[function(_dereq_,module,exports){
 var baseGetAllKeys = _dereq_('./_baseGetAllKeys'),
     getSymbols = _dereq_('./_getSymbols'),
     keys = _dereq_('./keys');
@@ -68669,7 +72952,7 @@ function getAllKeys(object) {
 
 module.exports = getAllKeys;
 
-},{"./_baseGetAllKeys":73,"./_getSymbols":134,"./keys":221}],128:[function(_dereq_,module,exports){
+},{"./_baseGetAllKeys":185,"./_getSymbols":251,"./keys":345}],245:[function(_dereq_,module,exports){
 var baseGetAllKeys = _dereq_('./_baseGetAllKeys'),
     getSymbolsIn = _dereq_('./_getSymbolsIn'),
     keysIn = _dereq_('./keysIn');
@@ -68688,7 +72971,7 @@ function getAllKeysIn(object) {
 
 module.exports = getAllKeysIn;
 
-},{"./_baseGetAllKeys":73,"./_getSymbolsIn":135,"./keysIn":222}],129:[function(_dereq_,module,exports){
+},{"./_baseGetAllKeys":185,"./_getSymbolsIn":252,"./keysIn":346}],246:[function(_dereq_,module,exports){
 var isKeyable = _dereq_('./_isKeyable');
 
 /**
@@ -68708,7 +72991,7 @@ function getMapData(map, key) {
 
 module.exports = getMapData;
 
-},{"./_isKeyable":151}],130:[function(_dereq_,module,exports){
+},{"./_isKeyable":268}],247:[function(_dereq_,module,exports){
 var isStrictComparable = _dereq_('./_isStrictComparable'),
     keys = _dereq_('./keys');
 
@@ -68734,7 +73017,7 @@ function getMatchData(object) {
 
 module.exports = getMatchData;
 
-},{"./_isStrictComparable":154,"./keys":221}],131:[function(_dereq_,module,exports){
+},{"./_isStrictComparable":271,"./keys":345}],248:[function(_dereq_,module,exports){
 var baseIsNative = _dereq_('./_baseIsNative'),
     getValue = _dereq_('./_getValue');
 
@@ -68753,7 +73036,7 @@ function getNative(object, key) {
 
 module.exports = getNative;
 
-},{"./_baseIsNative":83,"./_getValue":137}],132:[function(_dereq_,module,exports){
+},{"./_baseIsNative":196,"./_getValue":254}],249:[function(_dereq_,module,exports){
 var overArg = _dereq_('./_overArg');
 
 /** Built-in value references. */
@@ -68761,7 +73044,7 @@ var getPrototype = overArg(Object.getPrototypeOf, Object);
 
 module.exports = getPrototype;
 
-},{"./_overArg":173}],133:[function(_dereq_,module,exports){
+},{"./_overArg":290}],250:[function(_dereq_,module,exports){
 var Symbol = _dereq_('./_Symbol');
 
 /** Used for built-in method references. */
@@ -68809,7 +73092,7 @@ function getRawTag(value) {
 
 module.exports = getRawTag;
 
-},{"./_Symbol":48}],134:[function(_dereq_,module,exports){
+},{"./_Symbol":159}],251:[function(_dereq_,module,exports){
 var arrayFilter = _dereq_('./_arrayFilter'),
     stubArray = _dereq_('./stubArray');
 
@@ -68841,7 +73124,7 @@ var getSymbols = !nativeGetSymbols ? stubArray : function(object) {
 
 module.exports = getSymbols;
 
-},{"./_arrayFilter":53,"./stubArray":230}],135:[function(_dereq_,module,exports){
+},{"./_arrayFilter":164,"./stubArray":356}],252:[function(_dereq_,module,exports){
 var arrayPush = _dereq_('./_arrayPush'),
     getPrototype = _dereq_('./_getPrototype'),
     getSymbols = _dereq_('./_getSymbols'),
@@ -68868,7 +73151,7 @@ var getSymbolsIn = !nativeGetSymbols ? stubArray : function(object) {
 
 module.exports = getSymbolsIn;
 
-},{"./_arrayPush":56,"./_getPrototype":132,"./_getSymbols":134,"./stubArray":230}],136:[function(_dereq_,module,exports){
+},{"./_arrayPush":167,"./_getPrototype":249,"./_getSymbols":251,"./stubArray":356}],253:[function(_dereq_,module,exports){
 var DataView = _dereq_('./_DataView'),
     Map = _dereq_('./_Map'),
     Promise = _dereq_('./_Promise'),
@@ -68928,7 +73211,7 @@ if ((DataView && getTag(new DataView(new ArrayBuffer(1))) != dataViewTag) ||
 
 module.exports = getTag;
 
-},{"./_DataView":39,"./_Map":42,"./_Promise":44,"./_Set":45,"./_WeakMap":50,"./_baseGetTag":74,"./_toSource":191}],137:[function(_dereq_,module,exports){
+},{"./_DataView":150,"./_Map":153,"./_Promise":155,"./_Set":156,"./_WeakMap":161,"./_baseGetTag":186,"./_toSource":309}],254:[function(_dereq_,module,exports){
 /**
  * Gets the value at `key` of `object`.
  *
@@ -68943,7 +73226,7 @@ function getValue(object, key) {
 
 module.exports = getValue;
 
-},{}],138:[function(_dereq_,module,exports){
+},{}],255:[function(_dereq_,module,exports){
 var castPath = _dereq_('./_castPath'),
     isArguments = _dereq_('./isArguments'),
     isArray = _dereq_('./isArray'),
@@ -68984,7 +73267,7 @@ function hasPath(object, path, hasFunc) {
 
 module.exports = hasPath;
 
-},{"./_castPath":104,"./_isIndex":148,"./_toKey":190,"./isArguments":201,"./isArray":202,"./isLength":210}],139:[function(_dereq_,module,exports){
+},{"./_castPath":219,"./_isIndex":265,"./_toKey":308,"./isArguments":324,"./isArray":325,"./isLength":333}],256:[function(_dereq_,module,exports){
 /** Used to compose unicode character classes. */
 var rsAstralRange = '\\ud800-\\udfff',
     rsComboMarksRange = '\\u0300-\\u036f',
@@ -69012,7 +73295,7 @@ function hasUnicode(string) {
 
 module.exports = hasUnicode;
 
-},{}],140:[function(_dereq_,module,exports){
+},{}],257:[function(_dereq_,module,exports){
 var nativeCreate = _dereq_('./_nativeCreate');
 
 /**
@@ -69029,7 +73312,7 @@ function hashClear() {
 
 module.exports = hashClear;
 
-},{"./_nativeCreate":168}],141:[function(_dereq_,module,exports){
+},{"./_nativeCreate":285}],258:[function(_dereq_,module,exports){
 /**
  * Removes `key` and its value from the hash.
  *
@@ -69048,7 +73331,7 @@ function hashDelete(key) {
 
 module.exports = hashDelete;
 
-},{}],142:[function(_dereq_,module,exports){
+},{}],259:[function(_dereq_,module,exports){
 var nativeCreate = _dereq_('./_nativeCreate');
 
 /** Used to stand-in for `undefined` hash values. */
@@ -69080,7 +73363,7 @@ function hashGet(key) {
 
 module.exports = hashGet;
 
-},{"./_nativeCreate":168}],143:[function(_dereq_,module,exports){
+},{"./_nativeCreate":285}],260:[function(_dereq_,module,exports){
 var nativeCreate = _dereq_('./_nativeCreate');
 
 /** Used for built-in method references. */
@@ -69105,7 +73388,7 @@ function hashHas(key) {
 
 module.exports = hashHas;
 
-},{"./_nativeCreate":168}],144:[function(_dereq_,module,exports){
+},{"./_nativeCreate":285}],261:[function(_dereq_,module,exports){
 var nativeCreate = _dereq_('./_nativeCreate');
 
 /** Used to stand-in for `undefined` hash values. */
@@ -69130,7 +73413,7 @@ function hashSet(key, value) {
 
 module.exports = hashSet;
 
-},{"./_nativeCreate":168}],145:[function(_dereq_,module,exports){
+},{"./_nativeCreate":285}],262:[function(_dereq_,module,exports){
 /** Used for built-in method references. */
 var objectProto = Object.prototype;
 
@@ -69158,7 +73441,7 @@ function initCloneArray(array) {
 
 module.exports = initCloneArray;
 
-},{}],146:[function(_dereq_,module,exports){
+},{}],263:[function(_dereq_,module,exports){
 var cloneArrayBuffer = _dereq_('./_cloneArrayBuffer'),
     cloneDataView = _dereq_('./_cloneDataView'),
     cloneRegExp = _dereq_('./_cloneRegExp'),
@@ -69237,7 +73520,7 @@ function initCloneByTag(object, tag, isDeep) {
 
 module.exports = initCloneByTag;
 
-},{"./_cloneArrayBuffer":108,"./_cloneDataView":110,"./_cloneRegExp":111,"./_cloneSymbol":112,"./_cloneTypedArray":113}],147:[function(_dereq_,module,exports){
+},{"./_cloneArrayBuffer":223,"./_cloneDataView":225,"./_cloneRegExp":226,"./_cloneSymbol":227,"./_cloneTypedArray":228}],264:[function(_dereq_,module,exports){
 var baseCreate = _dereq_('./_baseCreate'),
     getPrototype = _dereq_('./_getPrototype'),
     isPrototype = _dereq_('./_isPrototype');
@@ -69257,7 +73540,7 @@ function initCloneObject(object) {
 
 module.exports = initCloneObject;
 
-},{"./_baseCreate":66,"./_getPrototype":132,"./_isPrototype":153}],148:[function(_dereq_,module,exports){
+},{"./_baseCreate":178,"./_getPrototype":249,"./_isPrototype":270}],265:[function(_dereq_,module,exports){
 /** Used as references for various `Number` constants. */
 var MAX_SAFE_INTEGER = 9007199254740991;
 
@@ -69284,7 +73567,7 @@ function isIndex(value, length) {
 
 module.exports = isIndex;
 
-},{}],149:[function(_dereq_,module,exports){
+},{}],266:[function(_dereq_,module,exports){
 var eq = _dereq_('./eq'),
     isArrayLike = _dereq_('./isArrayLike'),
     isIndex = _dereq_('./_isIndex'),
@@ -69316,7 +73599,7 @@ function isIterateeCall(value, index, object) {
 
 module.exports = isIterateeCall;
 
-},{"./_isIndex":148,"./eq":196,"./isArrayLike":203,"./isObject":215}],150:[function(_dereq_,module,exports){
+},{"./_isIndex":265,"./eq":317,"./isArrayLike":326,"./isObject":338}],267:[function(_dereq_,module,exports){
 var isArray = _dereq_('./isArray'),
     isSymbol = _dereq_('./isSymbol');
 
@@ -69347,7 +73630,7 @@ function isKey(value, object) {
 
 module.exports = isKey;
 
-},{"./isArray":202,"./isSymbol":219}],151:[function(_dereq_,module,exports){
+},{"./isArray":325,"./isSymbol":343}],268:[function(_dereq_,module,exports){
 /**
  * Checks if `value` is suitable for use as unique object key.
  *
@@ -69364,7 +73647,7 @@ function isKeyable(value) {
 
 module.exports = isKeyable;
 
-},{}],152:[function(_dereq_,module,exports){
+},{}],269:[function(_dereq_,module,exports){
 var coreJsData = _dereq_('./_coreJsData');
 
 /** Used to detect methods masquerading as native. */
@@ -69386,7 +73669,7 @@ function isMasked(func) {
 
 module.exports = isMasked;
 
-},{"./_coreJsData":118}],153:[function(_dereq_,module,exports){
+},{"./_coreJsData":233}],270:[function(_dereq_,module,exports){
 /** Used for built-in method references. */
 var objectProto = Object.prototype;
 
@@ -69406,7 +73689,7 @@ function isPrototype(value) {
 
 module.exports = isPrototype;
 
-},{}],154:[function(_dereq_,module,exports){
+},{}],271:[function(_dereq_,module,exports){
 var isObject = _dereq_('./isObject');
 
 /**
@@ -69423,7 +73706,7 @@ function isStrictComparable(value) {
 
 module.exports = isStrictComparable;
 
-},{"./isObject":215}],155:[function(_dereq_,module,exports){
+},{"./isObject":338}],272:[function(_dereq_,module,exports){
 /**
  * Removes all key-value entries from the list cache.
  *
@@ -69438,7 +73721,7 @@ function listCacheClear() {
 
 module.exports = listCacheClear;
 
-},{}],156:[function(_dereq_,module,exports){
+},{}],273:[function(_dereq_,module,exports){
 var assocIndexOf = _dereq_('./_assocIndexOf');
 
 /** Used for built-in method references. */
@@ -69475,7 +73758,7 @@ function listCacheDelete(key) {
 
 module.exports = listCacheDelete;
 
-},{"./_assocIndexOf":61}],157:[function(_dereq_,module,exports){
+},{"./_assocIndexOf":173}],274:[function(_dereq_,module,exports){
 var assocIndexOf = _dereq_('./_assocIndexOf');
 
 /**
@@ -69496,7 +73779,7 @@ function listCacheGet(key) {
 
 module.exports = listCacheGet;
 
-},{"./_assocIndexOf":61}],158:[function(_dereq_,module,exports){
+},{"./_assocIndexOf":173}],275:[function(_dereq_,module,exports){
 var assocIndexOf = _dereq_('./_assocIndexOf');
 
 /**
@@ -69514,7 +73797,7 @@ function listCacheHas(key) {
 
 module.exports = listCacheHas;
 
-},{"./_assocIndexOf":61}],159:[function(_dereq_,module,exports){
+},{"./_assocIndexOf":173}],276:[function(_dereq_,module,exports){
 var assocIndexOf = _dereq_('./_assocIndexOf');
 
 /**
@@ -69542,7 +73825,7 @@ function listCacheSet(key, value) {
 
 module.exports = listCacheSet;
 
-},{"./_assocIndexOf":61}],160:[function(_dereq_,module,exports){
+},{"./_assocIndexOf":173}],277:[function(_dereq_,module,exports){
 var Hash = _dereq_('./_Hash'),
     ListCache = _dereq_('./_ListCache'),
     Map = _dereq_('./_Map');
@@ -69565,7 +73848,7 @@ function mapCacheClear() {
 
 module.exports = mapCacheClear;
 
-},{"./_Hash":40,"./_ListCache":41,"./_Map":42}],161:[function(_dereq_,module,exports){
+},{"./_Hash":151,"./_ListCache":152,"./_Map":153}],278:[function(_dereq_,module,exports){
 var getMapData = _dereq_('./_getMapData');
 
 /**
@@ -69585,7 +73868,7 @@ function mapCacheDelete(key) {
 
 module.exports = mapCacheDelete;
 
-},{"./_getMapData":129}],162:[function(_dereq_,module,exports){
+},{"./_getMapData":246}],279:[function(_dereq_,module,exports){
 var getMapData = _dereq_('./_getMapData');
 
 /**
@@ -69603,7 +73886,7 @@ function mapCacheGet(key) {
 
 module.exports = mapCacheGet;
 
-},{"./_getMapData":129}],163:[function(_dereq_,module,exports){
+},{"./_getMapData":246}],280:[function(_dereq_,module,exports){
 var getMapData = _dereq_('./_getMapData');
 
 /**
@@ -69621,7 +73904,7 @@ function mapCacheHas(key) {
 
 module.exports = mapCacheHas;
 
-},{"./_getMapData":129}],164:[function(_dereq_,module,exports){
+},{"./_getMapData":246}],281:[function(_dereq_,module,exports){
 var getMapData = _dereq_('./_getMapData');
 
 /**
@@ -69645,7 +73928,7 @@ function mapCacheSet(key, value) {
 
 module.exports = mapCacheSet;
 
-},{"./_getMapData":129}],165:[function(_dereq_,module,exports){
+},{"./_getMapData":246}],282:[function(_dereq_,module,exports){
 /**
  * Converts `map` to its key-value pairs.
  *
@@ -69665,7 +73948,7 @@ function mapToArray(map) {
 
 module.exports = mapToArray;
 
-},{}],166:[function(_dereq_,module,exports){
+},{}],283:[function(_dereq_,module,exports){
 /**
  * A specialized version of `matchesProperty` for source values suitable
  * for strict equality comparisons, i.e. `===`.
@@ -69687,7 +73970,7 @@ function matchesStrictComparable(key, srcValue) {
 
 module.exports = matchesStrictComparable;
 
-},{}],167:[function(_dereq_,module,exports){
+},{}],284:[function(_dereq_,module,exports){
 var memoize = _dereq_('./memoize');
 
 /** Used as the maximum memoize cache size. */
@@ -69715,7 +73998,7 @@ function memoizeCapped(func) {
 
 module.exports = memoizeCapped;
 
-},{"./memoize":226}],168:[function(_dereq_,module,exports){
+},{"./memoize":350}],285:[function(_dereq_,module,exports){
 var getNative = _dereq_('./_getNative');
 
 /* Built-in method references that are verified to be native. */
@@ -69723,7 +74006,7 @@ var nativeCreate = getNative(Object, 'create');
 
 module.exports = nativeCreate;
 
-},{"./_getNative":131}],169:[function(_dereq_,module,exports){
+},{"./_getNative":248}],286:[function(_dereq_,module,exports){
 var overArg = _dereq_('./_overArg');
 
 /* Built-in method references for those with the same name as other `lodash` methods. */
@@ -69731,7 +74014,7 @@ var nativeKeys = overArg(Object.keys, Object);
 
 module.exports = nativeKeys;
 
-},{"./_overArg":173}],170:[function(_dereq_,module,exports){
+},{"./_overArg":290}],287:[function(_dereq_,module,exports){
 /**
  * This function is like
  * [`Object.keys`](http://ecma-international.org/ecma-262/7.0/#sec-object.keys)
@@ -69753,7 +74036,7 @@ function nativeKeysIn(object) {
 
 module.exports = nativeKeysIn;
 
-},{}],171:[function(_dereq_,module,exports){
+},{}],288:[function(_dereq_,module,exports){
 var freeGlobal = _dereq_('./_freeGlobal');
 
 /** Detect free variable `exports`. */
@@ -69785,7 +74068,7 @@ var nodeUtil = (function() {
 
 module.exports = nodeUtil;
 
-},{"./_freeGlobal":126}],172:[function(_dereq_,module,exports){
+},{"./_freeGlobal":243}],289:[function(_dereq_,module,exports){
 /** Used for built-in method references. */
 var objectProto = Object.prototype;
 
@@ -69809,7 +74092,7 @@ function objectToString(value) {
 
 module.exports = objectToString;
 
-},{}],173:[function(_dereq_,module,exports){
+},{}],290:[function(_dereq_,module,exports){
 /**
  * Creates a unary function that invokes `func` with its argument transformed.
  *
@@ -69826,7 +74109,7 @@ function overArg(func, transform) {
 
 module.exports = overArg;
 
-},{}],174:[function(_dereq_,module,exports){
+},{}],291:[function(_dereq_,module,exports){
 var apply = _dereq_('./_apply');
 
 /* Built-in method references for those with the same name as other `lodash` methods. */
@@ -69864,7 +74147,7 @@ function overRest(func, start, transform) {
 
 module.exports = overRest;
 
-},{"./_apply":51}],175:[function(_dereq_,module,exports){
+},{"./_apply":162}],292:[function(_dereq_,module,exports){
 var freeGlobal = _dereq_('./_freeGlobal');
 
 /** Detect free variable `self`. */
@@ -69875,7 +74158,7 @@ var root = freeGlobal || freeSelf || Function('return this')();
 
 module.exports = root;
 
-},{"./_freeGlobal":126}],176:[function(_dereq_,module,exports){
+},{"./_freeGlobal":243}],293:[function(_dereq_,module,exports){
 /**
  * Gets the value at `key`, unless `key` is "__proto__".
  *
@@ -69885,14 +74168,16 @@ module.exports = root;
  * @returns {*} Returns the property value.
  */
 function safeGet(object, key) {
-  return key == '__proto__'
-    ? undefined
-    : object[key];
+  if (key == '__proto__') {
+    return;
+  }
+
+  return object[key];
 }
 
 module.exports = safeGet;
 
-},{}],177:[function(_dereq_,module,exports){
+},{}],294:[function(_dereq_,module,exports){
 /** Used to stand-in for `undefined` hash values. */
 var HASH_UNDEFINED = '__lodash_hash_undefined__';
 
@@ -69913,7 +74198,7 @@ function setCacheAdd(value) {
 
 module.exports = setCacheAdd;
 
-},{}],178:[function(_dereq_,module,exports){
+},{}],295:[function(_dereq_,module,exports){
 /**
  * Checks if `value` is in the array cache.
  *
@@ -69929,7 +74214,7 @@ function setCacheHas(value) {
 
 module.exports = setCacheHas;
 
-},{}],179:[function(_dereq_,module,exports){
+},{}],296:[function(_dereq_,module,exports){
 /**
  * Converts `set` to an array of its values.
  *
@@ -69949,7 +74234,7 @@ function setToArray(set) {
 
 module.exports = setToArray;
 
-},{}],180:[function(_dereq_,module,exports){
+},{}],297:[function(_dereq_,module,exports){
 var baseSetToString = _dereq_('./_baseSetToString'),
     shortOut = _dereq_('./_shortOut');
 
@@ -69965,7 +74250,7 @@ var setToString = shortOut(baseSetToString);
 
 module.exports = setToString;
 
-},{"./_baseSetToString":98,"./_shortOut":181}],181:[function(_dereq_,module,exports){
+},{"./_baseSetToString":212,"./_shortOut":298}],298:[function(_dereq_,module,exports){
 /** Used to detect hot functions by number of calls within a span of milliseconds. */
 var HOT_COUNT = 800,
     HOT_SPAN = 16;
@@ -70004,7 +74289,7 @@ function shortOut(func) {
 
 module.exports = shortOut;
 
-},{}],182:[function(_dereq_,module,exports){
+},{}],299:[function(_dereq_,module,exports){
 var ListCache = _dereq_('./_ListCache');
 
 /**
@@ -70021,7 +74306,7 @@ function stackClear() {
 
 module.exports = stackClear;
 
-},{"./_ListCache":41}],183:[function(_dereq_,module,exports){
+},{"./_ListCache":152}],300:[function(_dereq_,module,exports){
 /**
  * Removes `key` and its value from the stack.
  *
@@ -70041,7 +74326,7 @@ function stackDelete(key) {
 
 module.exports = stackDelete;
 
-},{}],184:[function(_dereq_,module,exports){
+},{}],301:[function(_dereq_,module,exports){
 /**
  * Gets the stack value for `key`.
  *
@@ -70057,7 +74342,7 @@ function stackGet(key) {
 
 module.exports = stackGet;
 
-},{}],185:[function(_dereq_,module,exports){
+},{}],302:[function(_dereq_,module,exports){
 /**
  * Checks if a stack value for `key` exists.
  *
@@ -70073,7 +74358,7 @@ function stackHas(key) {
 
 module.exports = stackHas;
 
-},{}],186:[function(_dereq_,module,exports){
+},{}],303:[function(_dereq_,module,exports){
 var ListCache = _dereq_('./_ListCache'),
     Map = _dereq_('./_Map'),
     MapCache = _dereq_('./_MapCache');
@@ -70109,7 +74394,7 @@ function stackSet(key, value) {
 
 module.exports = stackSet;
 
-},{"./_ListCache":41,"./_Map":42,"./_MapCache":43}],187:[function(_dereq_,module,exports){
+},{"./_ListCache":152,"./_Map":153,"./_MapCache":154}],304:[function(_dereq_,module,exports){
 /**
  * A specialized version of `_.indexOf` which performs strict equality
  * comparisons of values, i.e. `===`.
@@ -70134,7 +74419,27 @@ function strictIndexOf(array, value, fromIndex) {
 
 module.exports = strictIndexOf;
 
-},{}],188:[function(_dereq_,module,exports){
+},{}],305:[function(_dereq_,module,exports){
+var asciiSize = _dereq_('./_asciiSize'),
+    hasUnicode = _dereq_('./_hasUnicode'),
+    unicodeSize = _dereq_('./_unicodeSize');
+
+/**
+ * Gets the number of symbols in `string`.
+ *
+ * @private
+ * @param {string} string The string to inspect.
+ * @returns {number} Returns the string size.
+ */
+function stringSize(string) {
+  return hasUnicode(string)
+    ? unicodeSize(string)
+    : asciiSize(string);
+}
+
+module.exports = stringSize;
+
+},{"./_asciiSize":169,"./_hasUnicode":256,"./_unicodeSize":310}],306:[function(_dereq_,module,exports){
 var asciiToArray = _dereq_('./_asciiToArray'),
     hasUnicode = _dereq_('./_hasUnicode'),
     unicodeToArray = _dereq_('./_unicodeToArray');
@@ -70154,7 +74459,7 @@ function stringToArray(string) {
 
 module.exports = stringToArray;
 
-},{"./_asciiToArray":58,"./_hasUnicode":139,"./_unicodeToArray":192}],189:[function(_dereq_,module,exports){
+},{"./_asciiToArray":170,"./_hasUnicode":256,"./_unicodeToArray":311}],307:[function(_dereq_,module,exports){
 var memoizeCapped = _dereq_('./_memoizeCapped');
 
 /** Used to match property names within property paths. */
@@ -70183,7 +74488,7 @@ var stringToPath = memoizeCapped(function(string) {
 
 module.exports = stringToPath;
 
-},{"./_memoizeCapped":167}],190:[function(_dereq_,module,exports){
+},{"./_memoizeCapped":284}],308:[function(_dereq_,module,exports){
 var isSymbol = _dereq_('./isSymbol');
 
 /** Used as references for various `Number` constants. */
@@ -70206,7 +74511,7 @@ function toKey(value) {
 
 module.exports = toKey;
 
-},{"./isSymbol":219}],191:[function(_dereq_,module,exports){
+},{"./isSymbol":343}],309:[function(_dereq_,module,exports){
 /** Used for built-in method references. */
 var funcProto = Function.prototype;
 
@@ -70234,7 +74539,53 @@ function toSource(func) {
 
 module.exports = toSource;
 
-},{}],192:[function(_dereq_,module,exports){
+},{}],310:[function(_dereq_,module,exports){
+/** Used to compose unicode character classes. */
+var rsAstralRange = '\\ud800-\\udfff',
+    rsComboMarksRange = '\\u0300-\\u036f',
+    reComboHalfMarksRange = '\\ufe20-\\ufe2f',
+    rsComboSymbolsRange = '\\u20d0-\\u20ff',
+    rsComboRange = rsComboMarksRange + reComboHalfMarksRange + rsComboSymbolsRange,
+    rsVarRange = '\\ufe0e\\ufe0f';
+
+/** Used to compose unicode capture groups. */
+var rsAstral = '[' + rsAstralRange + ']',
+    rsCombo = '[' + rsComboRange + ']',
+    rsFitz = '\\ud83c[\\udffb-\\udfff]',
+    rsModifier = '(?:' + rsCombo + '|' + rsFitz + ')',
+    rsNonAstral = '[^' + rsAstralRange + ']',
+    rsRegional = '(?:\\ud83c[\\udde6-\\uddff]){2}',
+    rsSurrPair = '[\\ud800-\\udbff][\\udc00-\\udfff]',
+    rsZWJ = '\\u200d';
+
+/** Used to compose unicode regexes. */
+var reOptMod = rsModifier + '?',
+    rsOptVar = '[' + rsVarRange + ']?',
+    rsOptJoin = '(?:' + rsZWJ + '(?:' + [rsNonAstral, rsRegional, rsSurrPair].join('|') + ')' + rsOptVar + reOptMod + ')*',
+    rsSeq = rsOptVar + reOptMod + rsOptJoin,
+    rsSymbol = '(?:' + [rsNonAstral + rsCombo + '?', rsCombo, rsRegional, rsSurrPair, rsAstral].join('|') + ')';
+
+/** Used to match [string symbols](https://mathiasbynens.be/notes/javascript-unicode). */
+var reUnicode = RegExp(rsFitz + '(?=' + rsFitz + ')|' + rsSymbol + rsSeq, 'g');
+
+/**
+ * Gets the size of a Unicode `string`.
+ *
+ * @private
+ * @param {string} string The string inspect.
+ * @returns {number} Returns the string size.
+ */
+function unicodeSize(string) {
+  var result = reUnicode.lastIndex = 0;
+  while (reUnicode.test(string)) {
+    ++result;
+  }
+  return result;
+}
+
+module.exports = unicodeSize;
+
+},{}],311:[function(_dereq_,module,exports){
 /** Used to compose unicode character classes. */
 var rsAstralRange = '\\ud800-\\udfff',
     rsComboMarksRange = '\\u0300-\\u036f',
@@ -70276,7 +74627,7 @@ function unicodeToArray(string) {
 
 module.exports = unicodeToArray;
 
-},{}],193:[function(_dereq_,module,exports){
+},{}],312:[function(_dereq_,module,exports){
 var assignValue = _dereq_('./_assignValue'),
     copyObject = _dereq_('./_copyObject'),
     createAssigner = _dereq_('./_createAssigner'),
@@ -70336,7 +74687,97 @@ var assign = createAssigner(function(object, source) {
 
 module.exports = assign;
 
-},{"./_assignValue":60,"./_copyObject":115,"./_createAssigner":119,"./_isPrototype":153,"./isArrayLike":203,"./keys":221}],194:[function(_dereq_,module,exports){
+},{"./_assignValue":172,"./_copyObject":230,"./_createAssigner":234,"./_isPrototype":270,"./isArrayLike":326,"./keys":345}],313:[function(_dereq_,module,exports){
+var baseSlice = _dereq_('./_baseSlice'),
+    isIterateeCall = _dereq_('./_isIterateeCall'),
+    toInteger = _dereq_('./toInteger');
+
+/* Built-in method references for those with the same name as other `lodash` methods. */
+var nativeCeil = Math.ceil,
+    nativeMax = Math.max;
+
+/**
+ * Creates an array of elements split into groups the length of `size`.
+ * If `array` can't be split evenly, the final chunk will be the remaining
+ * elements.
+ *
+ * @static
+ * @memberOf _
+ * @since 3.0.0
+ * @category Array
+ * @param {Array} array The array to process.
+ * @param {number} [size=1] The length of each chunk
+ * @param- {Object} [guard] Enables use as an iteratee for methods like `_.map`.
+ * @returns {Array} Returns the new array of chunks.
+ * @example
+ *
+ * _.chunk(['a', 'b', 'c', 'd'], 2);
+ * // => [['a', 'b'], ['c', 'd']]
+ *
+ * _.chunk(['a', 'b', 'c', 'd'], 3);
+ * // => [['a', 'b', 'c'], ['d']]
+ */
+function chunk(array, size, guard) {
+  if ((guard ? isIterateeCall(array, size, guard) : size === undefined)) {
+    size = 1;
+  } else {
+    size = nativeMax(toInteger(size), 0);
+  }
+  var length = array == null ? 0 : array.length;
+  if (!length || size < 1) {
+    return [];
+  }
+  var index = 0,
+      resIndex = 0,
+      result = Array(nativeCeil(length / size));
+
+  while (index < length) {
+    result[resIndex++] = baseSlice(array, index, (index += size));
+  }
+  return result;
+}
+
+module.exports = chunk;
+
+},{"./_baseSlice":213,"./_isIterateeCall":266,"./toInteger":359}],314:[function(_dereq_,module,exports){
+var baseClone = _dereq_('./_baseClone');
+
+/** Used to compose bitmasks for cloning. */
+var CLONE_SYMBOLS_FLAG = 4;
+
+/**
+ * Creates a shallow clone of `value`.
+ *
+ * **Note:** This method is loosely based on the
+ * [structured clone algorithm](https://mdn.io/Structured_clone_algorithm)
+ * and supports cloning arrays, array buffers, booleans, date objects, maps,
+ * numbers, `Object` objects, regexes, sets, strings, symbols, and typed
+ * arrays. The own enumerable properties of `arguments` objects are cloned
+ * as plain objects. An empty object is returned for uncloneable values such
+ * as error objects, functions, DOM nodes, and WeakMaps.
+ *
+ * @static
+ * @memberOf _
+ * @since 0.1.0
+ * @category Lang
+ * @param {*} value The value to clone.
+ * @returns {*} Returns the cloned value.
+ * @see _.cloneDeep
+ * @example
+ *
+ * var objects = [{ 'a': 1 }, { 'b': 2 }];
+ *
+ * var shallow = _.clone(objects);
+ * console.log(shallow[0] === objects[0]);
+ * // => true
+ */
+function clone(value) {
+  return baseClone(value, CLONE_SYMBOLS_FLAG);
+}
+
+module.exports = clone;
+
+},{"./_baseClone":177}],315:[function(_dereq_,module,exports){
 var baseClone = _dereq_('./_baseClone');
 
 /** Used to compose bitmasks for cloning. */
@@ -70367,7 +74808,7 @@ function cloneDeep(value) {
 
 module.exports = cloneDeep;
 
-},{"./_baseClone":65}],195:[function(_dereq_,module,exports){
+},{"./_baseClone":177}],316:[function(_dereq_,module,exports){
 /**
  * Creates a function that returns `value`.
  *
@@ -70395,7 +74836,7 @@ function constant(value) {
 
 module.exports = constant;
 
-},{}],196:[function(_dereq_,module,exports){
+},{}],317:[function(_dereq_,module,exports){
 /**
  * Performs a
  * [`SameValueZero`](http://ecma-international.org/ecma-262/7.0/#sec-samevaluezero)
@@ -70434,7 +74875,7 @@ function eq(value, other) {
 
 module.exports = eq;
 
-},{}],197:[function(_dereq_,module,exports){
+},{}],318:[function(_dereq_,module,exports){
 var arrayFilter = _dereq_('./_arrayFilter'),
     baseFilter = _dereq_('./_baseFilter'),
     baseIteratee = _dereq_('./_baseIteratee'),
@@ -70484,7 +74925,45 @@ function filter(collection, predicate) {
 
 module.exports = filter;
 
-},{"./_arrayFilter":53,"./_baseFilter":68,"./_baseIteratee":86,"./isArray":202}],198:[function(_dereq_,module,exports){
+},{"./_arrayFilter":164,"./_baseFilter":180,"./_baseIteratee":199,"./isArray":325}],319:[function(_dereq_,module,exports){
+var baseForOwn = _dereq_('./_baseForOwn'),
+    castFunction = _dereq_('./_castFunction');
+
+/**
+ * Iterates over own enumerable string keyed properties of an object and
+ * invokes `iteratee` for each property. The iteratee is invoked with three
+ * arguments: (value, key, object). Iteratee functions may exit iteration
+ * early by explicitly returning `false`.
+ *
+ * @static
+ * @memberOf _
+ * @since 0.3.0
+ * @category Object
+ * @param {Object} object The object to iterate over.
+ * @param {Function} [iteratee=_.identity] The function invoked per iteration.
+ * @returns {Object} Returns `object`.
+ * @see _.forOwnRight
+ * @example
+ *
+ * function Foo() {
+ *   this.a = 1;
+ *   this.b = 2;
+ * }
+ *
+ * Foo.prototype.c = 3;
+ *
+ * _.forOwn(new Foo, function(value, key) {
+ *   console.log(key);
+ * });
+ * // => Logs 'a' then 'b' (iteration order is not guaranteed).
+ */
+function forOwn(object, iteratee) {
+  return object && baseForOwn(object, castFunction(iteratee));
+}
+
+module.exports = forOwn;
+
+},{"./_baseForOwn":183,"./_castFunction":218}],320:[function(_dereq_,module,exports){
 var baseGet = _dereq_('./_baseGet');
 
 /**
@@ -70519,7 +74998,44 @@ function get(object, path, defaultValue) {
 
 module.exports = get;
 
-},{"./_baseGet":72}],199:[function(_dereq_,module,exports){
+},{"./_baseGet":184}],321:[function(_dereq_,module,exports){
+var baseHas = _dereq_('./_baseHas'),
+    hasPath = _dereq_('./_hasPath');
+
+/**
+ * Checks if `path` is a direct property of `object`.
+ *
+ * @static
+ * @since 0.1.0
+ * @memberOf _
+ * @category Object
+ * @param {Object} object The object to query.
+ * @param {Array|string} path The path to check.
+ * @returns {boolean} Returns `true` if `path` exists, else `false`.
+ * @example
+ *
+ * var object = { 'a': { 'b': 2 } };
+ * var other = _.create({ 'a': _.create({ 'b': 2 }) });
+ *
+ * _.has(object, 'a');
+ * // => true
+ *
+ * _.has(object, 'a.b');
+ * // => true
+ *
+ * _.has(object, ['a', 'b']);
+ * // => true
+ *
+ * _.has(other, 'a');
+ * // => false
+ */
+function has(object, path) {
+  return object != null && hasPath(object, path, baseHas);
+}
+
+module.exports = has;
+
+},{"./_baseHas":187,"./_hasPath":255}],322:[function(_dereq_,module,exports){
 var baseHasIn = _dereq_('./_baseHasIn'),
     hasPath = _dereq_('./_hasPath');
 
@@ -70555,7 +75071,7 @@ function hasIn(object, path) {
 
 module.exports = hasIn;
 
-},{"./_baseHasIn":75,"./_hasPath":138}],200:[function(_dereq_,module,exports){
+},{"./_baseHasIn":188,"./_hasPath":255}],323:[function(_dereq_,module,exports){
 /**
  * This method returns the first argument it receives.
  *
@@ -70578,7 +75094,7 @@ function identity(value) {
 
 module.exports = identity;
 
-},{}],201:[function(_dereq_,module,exports){
+},{}],324:[function(_dereq_,module,exports){
 var baseIsArguments = _dereq_('./_baseIsArguments'),
     isObjectLike = _dereq_('./isObjectLike');
 
@@ -70616,7 +75132,7 @@ var isArguments = baseIsArguments(function() { return arguments; }()) ? baseIsAr
 
 module.exports = isArguments;
 
-},{"./_baseIsArguments":77,"./isObjectLike":216}],202:[function(_dereq_,module,exports){
+},{"./_baseIsArguments":190,"./isObjectLike":339}],325:[function(_dereq_,module,exports){
 /**
  * Checks if `value` is classified as an `Array` object.
  *
@@ -70644,7 +75160,7 @@ var isArray = Array.isArray;
 
 module.exports = isArray;
 
-},{}],203:[function(_dereq_,module,exports){
+},{}],326:[function(_dereq_,module,exports){
 var isFunction = _dereq_('./isFunction'),
     isLength = _dereq_('./isLength');
 
@@ -70679,7 +75195,7 @@ function isArrayLike(value) {
 
 module.exports = isArrayLike;
 
-},{"./isFunction":209,"./isLength":210}],204:[function(_dereq_,module,exports){
+},{"./isFunction":332,"./isLength":333}],327:[function(_dereq_,module,exports){
 var isArrayLike = _dereq_('./isArrayLike'),
     isObjectLike = _dereq_('./isObjectLike');
 
@@ -70714,7 +75230,7 @@ function isArrayLikeObject(value) {
 
 module.exports = isArrayLikeObject;
 
-},{"./isArrayLike":203,"./isObjectLike":216}],205:[function(_dereq_,module,exports){
+},{"./isArrayLike":326,"./isObjectLike":339}],328:[function(_dereq_,module,exports){
 var root = _dereq_('./_root'),
     stubFalse = _dereq_('./stubFalse');
 
@@ -70754,7 +75270,7 @@ var isBuffer = nativeIsBuffer || stubFalse;
 
 module.exports = isBuffer;
 
-},{"./_root":175,"./stubFalse":231}],206:[function(_dereq_,module,exports){
+},{"./_root":292,"./stubFalse":357}],329:[function(_dereq_,module,exports){
 var baseKeys = _dereq_('./_baseKeys'),
     getTag = _dereq_('./_getTag'),
     isArguments = _dereq_('./isArguments'),
@@ -70833,7 +75349,7 @@ function isEmpty(value) {
 
 module.exports = isEmpty;
 
-},{"./_baseKeys":87,"./_getTag":136,"./_isPrototype":153,"./isArguments":201,"./isArray":202,"./isArrayLike":203,"./isBuffer":205,"./isTypedArray":220}],207:[function(_dereq_,module,exports){
+},{"./_baseKeys":200,"./_getTag":253,"./_isPrototype":270,"./isArguments":324,"./isArray":325,"./isArrayLike":326,"./isBuffer":328,"./isTypedArray":344}],330:[function(_dereq_,module,exports){
 var baseIsEqual = _dereq_('./_baseIsEqual');
 
 /**
@@ -70870,7 +75386,7 @@ function isEqual(value, other) {
 
 module.exports = isEqual;
 
-},{"./_baseIsEqual":78}],208:[function(_dereq_,module,exports){
+},{"./_baseIsEqual":191}],331:[function(_dereq_,module,exports){
 var root = _dereq_('./_root');
 
 /* Built-in method references for those with the same name as other `lodash` methods. */
@@ -70908,7 +75424,7 @@ function isFinite(value) {
 
 module.exports = isFinite;
 
-},{"./_root":175}],209:[function(_dereq_,module,exports){
+},{"./_root":292}],332:[function(_dereq_,module,exports){
 var baseGetTag = _dereq_('./_baseGetTag'),
     isObject = _dereq_('./isObject');
 
@@ -70947,7 +75463,7 @@ function isFunction(value) {
 
 module.exports = isFunction;
 
-},{"./_baseGetTag":74,"./isObject":215}],210:[function(_dereq_,module,exports){
+},{"./_baseGetTag":186,"./isObject":338}],333:[function(_dereq_,module,exports){
 /** Used as references for various `Number` constants. */
 var MAX_SAFE_INTEGER = 9007199254740991;
 
@@ -70984,7 +75500,7 @@ function isLength(value) {
 
 module.exports = isLength;
 
-},{}],211:[function(_dereq_,module,exports){
+},{}],334:[function(_dereq_,module,exports){
 var baseIsMap = _dereq_('./_baseIsMap'),
     baseUnary = _dereq_('./_baseUnary'),
     nodeUtil = _dereq_('./_nodeUtil');
@@ -71013,7 +75529,7 @@ var isMap = nodeIsMap ? baseUnary(nodeIsMap) : baseIsMap;
 
 module.exports = isMap;
 
-},{"./_baseIsMap":80,"./_baseUnary":102,"./_nodeUtil":171}],212:[function(_dereq_,module,exports){
+},{"./_baseIsMap":193,"./_baseUnary":216,"./_nodeUtil":288}],335:[function(_dereq_,module,exports){
 var isNumber = _dereq_('./isNumber');
 
 /**
@@ -71053,7 +75569,7 @@ function isNaN(value) {
 
 module.exports = isNaN;
 
-},{"./isNumber":214}],213:[function(_dereq_,module,exports){
+},{"./isNumber":337}],336:[function(_dereq_,module,exports){
 /**
  * Checks if `value` is `null` or `undefined`.
  *
@@ -71080,7 +75596,7 @@ function isNil(value) {
 
 module.exports = isNil;
 
-},{}],214:[function(_dereq_,module,exports){
+},{}],337:[function(_dereq_,module,exports){
 var baseGetTag = _dereq_('./_baseGetTag'),
     isObjectLike = _dereq_('./isObjectLike');
 
@@ -71120,7 +75636,7 @@ function isNumber(value) {
 
 module.exports = isNumber;
 
-},{"./_baseGetTag":74,"./isObjectLike":216}],215:[function(_dereq_,module,exports){
+},{"./_baseGetTag":186,"./isObjectLike":339}],338:[function(_dereq_,module,exports){
 /**
  * Checks if `value` is the
  * [language type](http://www.ecma-international.org/ecma-262/7.0/#sec-ecmascript-language-types)
@@ -71153,7 +75669,7 @@ function isObject(value) {
 
 module.exports = isObject;
 
-},{}],216:[function(_dereq_,module,exports){
+},{}],339:[function(_dereq_,module,exports){
 /**
  * Checks if `value` is object-like. A value is object-like if it's not `null`
  * and has a `typeof` result of "object".
@@ -71184,7 +75700,7 @@ function isObjectLike(value) {
 
 module.exports = isObjectLike;
 
-},{}],217:[function(_dereq_,module,exports){
+},{}],340:[function(_dereq_,module,exports){
 var baseGetTag = _dereq_('./_baseGetTag'),
     getPrototype = _dereq_('./_getPrototype'),
     isObjectLike = _dereq_('./isObjectLike');
@@ -71248,7 +75764,7 @@ function isPlainObject(value) {
 
 module.exports = isPlainObject;
 
-},{"./_baseGetTag":74,"./_getPrototype":132,"./isObjectLike":216}],218:[function(_dereq_,module,exports){
+},{"./_baseGetTag":186,"./_getPrototype":249,"./isObjectLike":339}],341:[function(_dereq_,module,exports){
 var baseIsSet = _dereq_('./_baseIsSet'),
     baseUnary = _dereq_('./_baseUnary'),
     nodeUtil = _dereq_('./_nodeUtil');
@@ -71277,7 +75793,39 @@ var isSet = nodeIsSet ? baseUnary(nodeIsSet) : baseIsSet;
 
 module.exports = isSet;
 
-},{"./_baseIsSet":84,"./_baseUnary":102,"./_nodeUtil":171}],219:[function(_dereq_,module,exports){
+},{"./_baseIsSet":197,"./_baseUnary":216,"./_nodeUtil":288}],342:[function(_dereq_,module,exports){
+var baseGetTag = _dereq_('./_baseGetTag'),
+    isArray = _dereq_('./isArray'),
+    isObjectLike = _dereq_('./isObjectLike');
+
+/** `Object#toString` result references. */
+var stringTag = '[object String]';
+
+/**
+ * Checks if `value` is classified as a `String` primitive or object.
+ *
+ * @static
+ * @since 0.1.0
+ * @memberOf _
+ * @category Lang
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if `value` is a string, else `false`.
+ * @example
+ *
+ * _.isString('abc');
+ * // => true
+ *
+ * _.isString(1);
+ * // => false
+ */
+function isString(value) {
+  return typeof value == 'string' ||
+    (!isArray(value) && isObjectLike(value) && baseGetTag(value) == stringTag);
+}
+
+module.exports = isString;
+
+},{"./_baseGetTag":186,"./isArray":325,"./isObjectLike":339}],343:[function(_dereq_,module,exports){
 var baseGetTag = _dereq_('./_baseGetTag'),
     isObjectLike = _dereq_('./isObjectLike');
 
@@ -71308,7 +75856,7 @@ function isSymbol(value) {
 
 module.exports = isSymbol;
 
-},{"./_baseGetTag":74,"./isObjectLike":216}],220:[function(_dereq_,module,exports){
+},{"./_baseGetTag":186,"./isObjectLike":339}],344:[function(_dereq_,module,exports){
 var baseIsTypedArray = _dereq_('./_baseIsTypedArray'),
     baseUnary = _dereq_('./_baseUnary'),
     nodeUtil = _dereq_('./_nodeUtil');
@@ -71337,7 +75885,7 @@ var isTypedArray = nodeIsTypedArray ? baseUnary(nodeIsTypedArray) : baseIsTypedA
 
 module.exports = isTypedArray;
 
-},{"./_baseIsTypedArray":85,"./_baseUnary":102,"./_nodeUtil":171}],221:[function(_dereq_,module,exports){
+},{"./_baseIsTypedArray":198,"./_baseUnary":216,"./_nodeUtil":288}],345:[function(_dereq_,module,exports){
 var arrayLikeKeys = _dereq_('./_arrayLikeKeys'),
     baseKeys = _dereq_('./_baseKeys'),
     isArrayLike = _dereq_('./isArrayLike');
@@ -71376,7 +75924,7 @@ function keys(object) {
 
 module.exports = keys;
 
-},{"./_arrayLikeKeys":54,"./_baseKeys":87,"./isArrayLike":203}],222:[function(_dereq_,module,exports){
+},{"./_arrayLikeKeys":165,"./_baseKeys":200,"./isArrayLike":326}],346:[function(_dereq_,module,exports){
 var arrayLikeKeys = _dereq_('./_arrayLikeKeys'),
     baseKeysIn = _dereq_('./_baseKeysIn'),
     isArrayLike = _dereq_('./isArrayLike');
@@ -71410,7 +75958,7 @@ function keysIn(object) {
 
 module.exports = keysIn;
 
-},{"./_arrayLikeKeys":54,"./_baseKeysIn":88,"./isArrayLike":203}],223:[function(_dereq_,module,exports){
+},{"./_arrayLikeKeys":165,"./_baseKeysIn":201,"./isArrayLike":326}],347:[function(_dereq_,module,exports){
 (function (global){
 /**
  * @license
@@ -71426,7 +75974,7 @@ module.exports = keysIn;
   var undefined;
 
   /** Used as the semantic version number. */
-  var VERSION = '4.17.10';
+  var VERSION = '4.17.11';
 
   /** Used as the size to enable large array optimizations. */
   var LARGE_ARRAY_SIZE = 200;
@@ -71690,7 +76238,7 @@ module.exports = keysIn;
   var reHasUnicode = RegExp('[' + rsZWJ + rsAstralRange  + rsComboRange + rsVarRange + ']');
 
   /** Used to detect strings that need a more robust regexp to match words. */
-  var reHasUnicodeWord = /[a-z][A-Z]|[A-Z]{2,}[a-z]|[0-9][a-zA-Z]|[a-zA-Z][0-9]|[^a-zA-Z0-9 ]/;
+  var reHasUnicodeWord = /[a-z][A-Z]|[A-Z]{2}[a-z]|[0-9][a-zA-Z]|[a-zA-Z][0-9]|[^a-zA-Z0-9 ]/;
 
   /** Used to assign default `context` object properties. */
   var contextProps = [
@@ -72636,20 +77184,6 @@ module.exports = keysIn;
       }
     }
     return result;
-  }
-
-  /**
-   * Gets the value at `key`, unless `key` is "__proto__".
-   *
-   * @private
-   * @param {Object} object The object to query.
-   * @param {string} key The key of the property to get.
-   * @returns {*} Returns the property value.
-   */
-  function safeGet(object, key) {
-    return key == '__proto__'
-      ? undefined
-      : object[key];
   }
 
   /**
@@ -75109,7 +79643,7 @@ module.exports = keysIn;
           if (isArguments(objValue)) {
             newValue = toPlainObject(objValue);
           }
-          else if (!isObject(objValue) || (srcIndex && isFunction(objValue))) {
+          else if (!isObject(objValue) || isFunction(objValue)) {
             newValue = initCloneObject(srcValue);
           }
         }
@@ -78030,6 +82564,22 @@ module.exports = keysIn;
         array[length] = isIndex(index, arrLength) ? oldArray[index] : undefined;
       }
       return array;
+    }
+
+    /**
+     * Gets the value at `key`, unless `key` is "__proto__".
+     *
+     * @private
+     * @param {Object} object The object to query.
+     * @param {string} key The key of the property to get.
+     * @returns {*} Returns the property value.
+     */
+    function safeGet(object, key) {
+      if (key == '__proto__') {
+        return;
+      }
+
+      return object[key];
     }
 
     /**
@@ -88519,7 +93069,7 @@ module.exports = keysIn;
 }.call(this));
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],224:[function(_dereq_,module,exports){
+},{}],348:[function(_dereq_,module,exports){
 var arrayMap = _dereq_('./_arrayMap'),
     baseIteratee = _dereq_('./_baseIteratee'),
     baseMap = _dereq_('./_baseMap'),
@@ -88574,7 +93124,7 @@ function map(collection, iteratee) {
 
 module.exports = map;
 
-},{"./_arrayMap":55,"./_baseIteratee":86,"./_baseMap":89,"./isArray":202}],225:[function(_dereq_,module,exports){
+},{"./_arrayMap":166,"./_baseIteratee":199,"./_baseMap":202,"./isArray":325}],349:[function(_dereq_,module,exports){
 var baseAssignValue = _dereq_('./_baseAssignValue'),
     baseForOwn = _dereq_('./_baseForOwn'),
     baseIteratee = _dereq_('./_baseIteratee');
@@ -88619,7 +93169,7 @@ function mapValues(object, iteratee) {
 
 module.exports = mapValues;
 
-},{"./_baseAssignValue":64,"./_baseForOwn":71,"./_baseIteratee":86}],226:[function(_dereq_,module,exports){
+},{"./_baseAssignValue":176,"./_baseForOwn":183,"./_baseIteratee":199}],350:[function(_dereq_,module,exports){
 var MapCache = _dereq_('./_MapCache');
 
 /** Error message constants. */
@@ -88694,7 +93244,7 @@ memoize.Cache = MapCache;
 
 module.exports = memoize;
 
-},{"./_MapCache":43}],227:[function(_dereq_,module,exports){
+},{"./_MapCache":154}],351:[function(_dereq_,module,exports){
 var baseMerge = _dereq_('./_baseMerge'),
     createAssigner = _dereq_('./_createAssigner');
 
@@ -88735,7 +93285,58 @@ var merge = createAssigner(function(object, source, srcIndex) {
 
 module.exports = merge;
 
-},{"./_baseMerge":92,"./_createAssigner":119}],228:[function(_dereq_,module,exports){
+},{"./_baseMerge":205,"./_createAssigner":234}],352:[function(_dereq_,module,exports){
+var createPadding = _dereq_('./_createPadding'),
+    stringSize = _dereq_('./_stringSize'),
+    toInteger = _dereq_('./toInteger'),
+    toString = _dereq_('./toString');
+
+/* Built-in method references for those with the same name as other `lodash` methods. */
+var nativeCeil = Math.ceil,
+    nativeFloor = Math.floor;
+
+/**
+ * Pads `string` on the left and right sides if it's shorter than `length`.
+ * Padding characters are truncated if they can't be evenly divided by `length`.
+ *
+ * @static
+ * @memberOf _
+ * @since 3.0.0
+ * @category String
+ * @param {string} [string=''] The string to pad.
+ * @param {number} [length=0] The padding length.
+ * @param {string} [chars=' '] The string used as padding.
+ * @returns {string} Returns the padded string.
+ * @example
+ *
+ * _.pad('abc', 8);
+ * // => '  abc   '
+ *
+ * _.pad('abc', 8, '_-');
+ * // => '_-abc_-_'
+ *
+ * _.pad('abc', 3);
+ * // => 'abc'
+ */
+function pad(string, length, chars) {
+  string = toString(string);
+  length = toInteger(length);
+
+  var strLength = length ? stringSize(string) : 0;
+  if (!length || strLength >= length) {
+    return string;
+  }
+  var mid = (length - strLength) / 2;
+  return (
+    createPadding(nativeFloor(mid), chars) +
+    string +
+    createPadding(nativeCeil(mid), chars)
+  );
+}
+
+module.exports = pad;
+
+},{"./_createPadding":237,"./_stringSize":305,"./toInteger":359,"./toString":362}],353:[function(_dereq_,module,exports){
 var baseProperty = _dereq_('./_baseProperty'),
     basePropertyDeep = _dereq_('./_basePropertyDeep'),
     isKey = _dereq_('./_isKey'),
@@ -88769,7 +93370,35 @@ function property(path) {
 
 module.exports = property;
 
-},{"./_baseProperty":94,"./_basePropertyDeep":95,"./_isKey":150,"./_toKey":190}],229:[function(_dereq_,module,exports){
+},{"./_baseProperty":207,"./_basePropertyDeep":208,"./_isKey":267,"./_toKey":308}],354:[function(_dereq_,module,exports){
+var createRound = _dereq_('./_createRound');
+
+/**
+ * Computes `number` rounded to `precision`.
+ *
+ * @static
+ * @memberOf _
+ * @since 3.10.0
+ * @category Math
+ * @param {number} number The number to round.
+ * @param {number} [precision=0] The precision to round to.
+ * @returns {number} Returns the rounded number.
+ * @example
+ *
+ * _.round(4.006);
+ * // => 4
+ *
+ * _.round(4.006, 2);
+ * // => 4.01
+ *
+ * _.round(4060, -2);
+ * // => 4100
+ */
+var round = createRound('round');
+
+module.exports = round;
+
+},{"./_createRound":238}],355:[function(_dereq_,module,exports){
 var baseSet = _dereq_('./_baseSet');
 
 /**
@@ -88806,7 +93435,7 @@ function set(object, path, value) {
 
 module.exports = set;
 
-},{"./_baseSet":97}],230:[function(_dereq_,module,exports){
+},{"./_baseSet":211}],356:[function(_dereq_,module,exports){
 /**
  * This method returns a new empty array.
  *
@@ -88831,7 +93460,7 @@ function stubArray() {
 
 module.exports = stubArray;
 
-},{}],231:[function(_dereq_,module,exports){
+},{}],357:[function(_dereq_,module,exports){
 /**
  * This method returns `false`.
  *
@@ -88851,7 +93480,157 @@ function stubFalse() {
 
 module.exports = stubFalse;
 
-},{}],232:[function(_dereq_,module,exports){
+},{}],358:[function(_dereq_,module,exports){
+var toNumber = _dereq_('./toNumber');
+
+/** Used as references for various `Number` constants. */
+var INFINITY = 1 / 0,
+    MAX_INTEGER = 1.7976931348623157e+308;
+
+/**
+ * Converts `value` to a finite number.
+ *
+ * @static
+ * @memberOf _
+ * @since 4.12.0
+ * @category Lang
+ * @param {*} value The value to convert.
+ * @returns {number} Returns the converted number.
+ * @example
+ *
+ * _.toFinite(3.2);
+ * // => 3.2
+ *
+ * _.toFinite(Number.MIN_VALUE);
+ * // => 5e-324
+ *
+ * _.toFinite(Infinity);
+ * // => 1.7976931348623157e+308
+ *
+ * _.toFinite('3.2');
+ * // => 3.2
+ */
+function toFinite(value) {
+  if (!value) {
+    return value === 0 ? value : 0;
+  }
+  value = toNumber(value);
+  if (value === INFINITY || value === -INFINITY) {
+    var sign = (value < 0 ? -1 : 1);
+    return sign * MAX_INTEGER;
+  }
+  return value === value ? value : 0;
+}
+
+module.exports = toFinite;
+
+},{"./toNumber":360}],359:[function(_dereq_,module,exports){
+var toFinite = _dereq_('./toFinite');
+
+/**
+ * Converts `value` to an integer.
+ *
+ * **Note:** This method is loosely based on
+ * [`ToInteger`](http://www.ecma-international.org/ecma-262/7.0/#sec-tointeger).
+ *
+ * @static
+ * @memberOf _
+ * @since 4.0.0
+ * @category Lang
+ * @param {*} value The value to convert.
+ * @returns {number} Returns the converted integer.
+ * @example
+ *
+ * _.toInteger(3.2);
+ * // => 3
+ *
+ * _.toInteger(Number.MIN_VALUE);
+ * // => 0
+ *
+ * _.toInteger(Infinity);
+ * // => 1.7976931348623157e+308
+ *
+ * _.toInteger('3.2');
+ * // => 3
+ */
+function toInteger(value) {
+  var result = toFinite(value),
+      remainder = result % 1;
+
+  return result === result ? (remainder ? result - remainder : result) : 0;
+}
+
+module.exports = toInteger;
+
+},{"./toFinite":358}],360:[function(_dereq_,module,exports){
+var isObject = _dereq_('./isObject'),
+    isSymbol = _dereq_('./isSymbol');
+
+/** Used as references for various `Number` constants. */
+var NAN = 0 / 0;
+
+/** Used to match leading and trailing whitespace. */
+var reTrim = /^\s+|\s+$/g;
+
+/** Used to detect bad signed hexadecimal string values. */
+var reIsBadHex = /^[-+]0x[0-9a-f]+$/i;
+
+/** Used to detect binary string values. */
+var reIsBinary = /^0b[01]+$/i;
+
+/** Used to detect octal string values. */
+var reIsOctal = /^0o[0-7]+$/i;
+
+/** Built-in method references without a dependency on `root`. */
+var freeParseInt = parseInt;
+
+/**
+ * Converts `value` to a number.
+ *
+ * @static
+ * @memberOf _
+ * @since 4.0.0
+ * @category Lang
+ * @param {*} value The value to process.
+ * @returns {number} Returns the number.
+ * @example
+ *
+ * _.toNumber(3.2);
+ * // => 3.2
+ *
+ * _.toNumber(Number.MIN_VALUE);
+ * // => 5e-324
+ *
+ * _.toNumber(Infinity);
+ * // => Infinity
+ *
+ * _.toNumber('3.2');
+ * // => 3.2
+ */
+function toNumber(value) {
+  if (typeof value == 'number') {
+    return value;
+  }
+  if (isSymbol(value)) {
+    return NAN;
+  }
+  if (isObject(value)) {
+    var other = typeof value.valueOf == 'function' ? value.valueOf() : value;
+    value = isObject(other) ? (other + '') : other;
+  }
+  if (typeof value != 'string') {
+    return value === 0 ? value : +value;
+  }
+  value = value.replace(reTrim, '');
+  var isBinary = reIsBinary.test(value);
+  return (isBinary || reIsOctal.test(value))
+    ? freeParseInt(value.slice(2), isBinary ? 2 : 8)
+    : (reIsBadHex.test(value) ? NAN : +value);
+}
+
+module.exports = toNumber;
+
+},{"./isObject":338,"./isSymbol":343}],361:[function(_dereq_,module,exports){
 var copyObject = _dereq_('./_copyObject'),
     keysIn = _dereq_('./keysIn');
 
@@ -88885,7 +93664,7 @@ function toPlainObject(value) {
 
 module.exports = toPlainObject;
 
-},{"./_copyObject":115,"./keysIn":222}],233:[function(_dereq_,module,exports){
+},{"./_copyObject":230,"./keysIn":346}],362:[function(_dereq_,module,exports){
 var baseToString = _dereq_('./_baseToString');
 
 /**
@@ -88915,7 +93694,7 @@ function toString(value) {
 
 module.exports = toString;
 
-},{"./_baseToString":101}],234:[function(_dereq_,module,exports){
+},{"./_baseToString":215}],363:[function(_dereq_,module,exports){
 var baseToString = _dereq_('./_baseToString'),
     castSlice = _dereq_('./_castSlice'),
     charsEndIndex = _dereq_('./_charsEndIndex'),
@@ -88966,9 +93745,9 @@ function trim(string, chars, guard) {
 
 module.exports = trim;
 
-},{"./_baseToString":101,"./_castSlice":105,"./_charsEndIndex":106,"./_charsStartIndex":107,"./_stringToArray":188,"./toString":233}],235:[function(_dereq_,module,exports){
+},{"./_baseToString":215,"./_castSlice":220,"./_charsEndIndex":221,"./_charsStartIndex":222,"./_stringToArray":306,"./toString":362}],364:[function(_dereq_,module,exports){
 //! moment-timezone.js
-//! version : 0.5.21
+//! version : 0.5.23
 //! Copyright (c) JS Foundation and other contributors
 //! license : MIT
 //! github.com/moment/moment-timezone
@@ -88993,7 +93772,7 @@ module.exports = trim;
 	// 	return moment;
 	// }
 
-	var VERSION = "0.5.21",
+	var VERSION = "0.5.23",
 		zones = {},
 		links = {},
 		names = {},
@@ -89581,7 +94360,7 @@ module.exports = trim;
 	return moment;
 }));
 
-},{"moment":236}],236:[function(_dereq_,module,exports){
+},{"moment":365}],365:[function(_dereq_,module,exports){
 //! moment.js
 
 ;(function (global, factory) {
@@ -94089,7 +98868,7 @@ module.exports = trim;
 
 })));
 
-},{}],237:[function(_dereq_,module,exports){
+},{}],366:[function(_dereq_,module,exports){
 (function (global,setImmediate){
 /*! Native Promise Only
     v0.8.1 (c) Kyle Simpson
@@ -94466,7 +99245,7 @@ module.exports = trim;
 });
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},_dereq_("timers").setImmediate)
-},{"timers":245}],238:[function(_dereq_,module,exports){
+},{"timers":375}],367:[function(_dereq_,module,exports){
 /*
  * ngDialog - easy modals and popup windows
  * http://github.com/likeastore/ngDialog
@@ -95421,7 +100200,7 @@ module.exports = trim;
     return m;
 }));
 
-},{"angular":9}],239:[function(_dereq_,module,exports){
+},{"angular":10}],368:[function(_dereq_,module,exports){
 /**!
  * AngularJS file upload directives and services. Supports: file upload/drop/paste, resume, cancel/abort,
  * progress, resize, thumbnail, preview, validation and CORS
@@ -98321,10 +103100,10 @@ ngFileUpload.service('UploadExif', ['UploadResize', '$q', function (UploadResize
 }]);
 
 
-},{}],240:[function(_dereq_,module,exports){
+},{}],369:[function(_dereq_,module,exports){
 _dereq_('./dist/ng-file-upload-all');
 module.exports = 'ngFileUpload';
-},{"./dist/ng-file-upload-all":239}],241:[function(_dereq_,module,exports){
+},{"./dist/ng-file-upload-all":368}],370:[function(_dereq_,module,exports){
 // shim for using process in browser
 var process = module.exports = {};
 
@@ -98510,7 +103289,7 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],242:[function(_dereq_,module,exports){
+},{}],371:[function(_dereq_,module,exports){
 module.exports = function (obj) {
     if (!obj || typeof obj !== 'object') return obj;
     
@@ -98547,7 +103326,7 @@ var isArray = Array.isArray || function (xs) {
     return {}.toString.call(xs) === '[object Array]';
 };
 
-},{}],243:[function(_dereq_,module,exports){
+},{}],372:[function(_dereq_,module,exports){
 /*!
  * Signature Pad v2.3.2
  * https://github.com/szimek/signature_pad
@@ -99159,9 +103938,28 @@ return SignaturePad;
 
 })));
 
-},{}],244:[function(_dereq_,module,exports){
+},{}],373:[function(_dereq_,module,exports){
+"use strict";
+
+function hash(str) {
+  var hash = 5381,
+      i    = str.length;
+
+  while(i) {
+    hash = (hash * 33) ^ str.charCodeAt(--i);
+  }
+
+  /* JavaScript does bitwise operations (like XOR, above) on 32-bit signed
+   * integers. Since we want the results to be always positive, convert the
+   * signed int to an unsigned by doing an unsigned bitshift. */
+  return hash >>> 0;
+}
+
+module.exports = hash;
+
+},{}],374:[function(_dereq_,module,exports){
 !function(e,t){"object"==typeof exports&&"object"==typeof module?module.exports=t():"function"==typeof define&&define.amd?define([],t):"object"==typeof exports?exports.textMaskAddons=t():e.textMaskAddons=t()}(this,function(){return function(e){function t(r){if(n[r])return n[r].exports;var i=n[r]={exports:{},id:r,loaded:!1};return e[r].call(i.exports,i,i.exports,t),i.loaded=!0,i.exports}var n={};return t.m=e,t.c=n,t.p="",t(0)}([function(e,t,n){"use strict";function r(e){return e&&e.__esModule?e:{default:e}}Object.defineProperty(t,"__esModule",{value:!0});var i=n(1);Object.defineProperty(t,"createAutoCorrectedDatePipe",{enumerable:!0,get:function(){return r(i).default}});var o=n(2);Object.defineProperty(t,"createNumberMask",{enumerable:!0,get:function(){return r(o).default}});var u=n(3);Object.defineProperty(t,"emailMask",{enumerable:!0,get:function(){return r(u).default}})},function(e,t){"use strict";function n(){var e=arguments.length>0&&void 0!==arguments[0]?arguments[0]:"mm dd yyyy",t=arguments.length>1&&void 0!==arguments[1]?arguments[1]:{},n=t.minYear,o=void 0===n?1:n,u=t.maxYear,a=void 0===u?9999:u,c=e.split(/[^dmyHMS]+/).sort(function(e,t){return i.indexOf(e)-i.indexOf(t)});return function(t){var n=[],i={dd:31,mm:12,yy:99,yyyy:a,HH:23,MM:59,SS:59},u={dd:1,mm:1,yy:0,yyyy:o,HH:0,MM:0,SS:0},l=t.split("");c.forEach(function(t){var r=e.indexOf(t),o=parseInt(i[t].toString().substr(0,1),10);parseInt(l[r],10)>o&&(l[r+1]=l[r],l[r]=0,n.push(r))});var s=0,d=c.some(function(n){var c=e.indexOf(n),l=n.length,d=t.substr(c,l).replace(/\D/g,""),f=parseInt(d,10);"mm"===n&&(s=f||0);var p="dd"===n?r[s]:i[n];if("yyyy"===n&&(1!==o||9999!==a)){var v=parseInt(i[n].toString().substring(0,d.length),10),y=parseInt(u[n].toString().substring(0,d.length),10);return f<y||f>v}return f>p||d.length===l&&f<u[n]});return!d&&{value:l.join(""),indexesOfPipedChars:n}}}Object.defineProperty(t,"__esModule",{value:!0}),t.default=n;var r=[31,31,29,31,30,31,30,31,31,30,31,30,31],i=["yyyy","yy","mm","dd","HH","MM","SS"]},function(e,t){"use strict";function n(){function e(){var e=arguments.length>0&&void 0!==arguments[0]?arguments[0]:a,t=e.length;if(e===a||e[0]===g[0]&&1===t)return g.split(a).concat([v]).concat(h.split(a));if(e===P&&_)return g.split(a).concat(["0",P,v]).concat(h.split(a));var n=e[0]===s&&D;n&&(e=e.toString().substr(1));var u=e.lastIndexOf(P),c=u!==-1,l=void 0,m=void 0,b=void 0;if(e.slice($*-1)===h&&(e=e.slice(0,$*-1)),c&&(_||I)?(l=e.slice(e.slice(0,N)===g?N:0,u),m=e.slice(u+1,t),m=r(m.replace(f,a))):l=e.slice(0,N)===g?e.slice(N):e,L&&("undefined"==typeof L?"undefined":o(L))===p){var O="."===S?"[.]":""+S,M=(l.match(new RegExp(O,"g"))||[]).length;l=l.slice(0,L+M*V)}return l=l.replace(f,a),R||(l=l.replace(/^0+(0$|[^0])/,"$1")),l=x?i(l,S):l,b=r(l),(c&&_||I===!0)&&(e[u-1]!==P&&b.push(y),b.push(P,y),m&&(("undefined"==typeof C?"undefined":o(C))===p&&(m=m.slice(0,C)),b=b.concat(m)),I===!0&&e[u-1]===P&&b.push(v)),N>0&&(b=g.split(a).concat(b)),n&&(b.length===N&&b.push(v),b=[d].concat(b)),h.length>0&&(b=b.concat(h.split(a))),b}var t=arguments.length>0&&void 0!==arguments[0]?arguments[0]:{},n=t.prefix,g=void 0===n?u:n,m=t.suffix,h=void 0===m?a:m,b=t.includeThousandsSeparator,x=void 0===b||b,O=t.thousandsSeparatorSymbol,S=void 0===O?c:O,M=t.allowDecimal,_=void 0!==M&&M,j=t.decimalSymbol,P=void 0===j?l:j,w=t.decimalLimit,C=void 0===w?2:w,H=t.requireDecimal,I=void 0!==H&&H,k=t.allowNegative,D=void 0!==k&&k,E=t.allowLeadingZeroes,R=void 0!==E&&E,A=t.integerLimit,L=void 0===A?null:A,N=g&&g.length||0,$=h&&h.length||0,V=S&&S.length||0;return e.instanceOf="createNumberMask",e}function r(e){return e.split(a).map(function(e){return v.test(e)?v:e})}function i(e,t){return e.replace(/\B(?=(\d{3})+(?!\d))/g,t)}Object.defineProperty(t,"__esModule",{value:!0});var o="function"==typeof Symbol&&"symbol"==typeof Symbol.iterator?function(e){return typeof e}:function(e){return e&&"function"==typeof Symbol&&e.constructor===Symbol&&e!==Symbol.prototype?"symbol":typeof e};t.default=n;var u="$",a="",c=",",l=".",s="-",d=/-/,f=/\D+/g,p="number",v=/\d/,y="[]"},function(e,t,n){"use strict";function r(e){return e&&e.__esModule?e:{default:e}}function i(e,t){e=e.replace(O,v);var n=t.placeholderChar,r=t.currentCaretPosition,i=e.indexOf(y),s=e.lastIndexOf(p),d=s<i?-1:s,f=o(e,i+1,y),g=o(e,d-1,p),m=u(e,i,n),h=a(e,i,d,n),b=c(e,d,n,r);m=l(m),h=l(h),b=l(b,!0);var x=m.concat(f).concat(h).concat(g).concat(b);return x}function o(e,t,n){var r=[];return e[t]===n?r.push(n):r.push(g,n),r.push(g),r}function u(e,t){return t===-1?e:e.slice(0,t)}function a(e,t,n,r){var i=v;return t!==-1&&(i=n===-1?e.slice(t+1,e.length):e.slice(t+1,n)),i=i.replace(new RegExp("[\\s"+r+"]",h),v),i===y?f:i.length<1?m:i[i.length-1]===p?i.slice(0,i.length-1):i}function c(e,t,n,r){var i=v;return t!==-1&&(i=e.slice(t+1,e.length)),i=i.replace(new RegExp("[\\s"+n+".]",h),v),0===i.length?e[t-1]===p&&r!==e.length?f:v:i}function l(e,t){return e.split(v).map(function(e){return e===m?e:t?x:b})}Object.defineProperty(t,"__esModule",{value:!0});var s=n(4),d=r(s),f="*",p=".",v="",y="@",g="[]",m=" ",h="g",b=/[^\s]/,x=/[^.\s]/,O=/\s/g;t.default={mask:i,pipe:d.default}},function(e,t){"use strict";function n(e,t){var n=t.currentCaretPosition,o=t.rawValue,f=t.previousConformedValue,p=t.placeholderChar,v=e;v=r(v);var y=v.indexOf(a),g=null===o.match(new RegExp("[^@\\s."+p+"]"));if(g)return u;if(v.indexOf(l)!==-1||y!==-1&&n!==y+1||o.indexOf(i)===-1&&f!==u&&o.indexOf(c)!==-1)return!1;var m=v.indexOf(i),h=v.slice(m+1,v.length);return(h.match(d)||s).length>1&&v.substr(-1)===c&&n!==o.length&&(v=v.slice(0,v.length-1)),v}function r(e){var t=0;return e.replace(o,function(){return t++,1===t?i:u})}Object.defineProperty(t,"__esModule",{value:!0}),t.default=n;var i="@",o=/@/g,u="",a="@.",c=".",l="..",s=[],d=/\./g}])});
-},{}],245:[function(_dereq_,module,exports){
+},{}],375:[function(_dereq_,module,exports){
 (function (setImmediate,clearImmediate){
 var nextTick = _dereq_('process/browser.js').nextTick;
 var apply = Function.prototype.apply;
@@ -99240,7 +104038,7 @@ exports.clearImmediate = typeof clearImmediate === "function" ? clearImmediate :
   delete immediateIds[id];
 };
 }).call(this,_dereq_("timers").setImmediate,_dereq_("timers").clearImmediate)
-},{"process/browser.js":241,"timers":245}],246:[function(_dereq_,module,exports){
+},{"process/browser.js":370,"timers":375}],376:[function(_dereq_,module,exports){
 /*!
  * ui-select
  * http://github.com/angular-ui/ui-select
@@ -101668,29 +106466,35 @@ $templateCache.put("selectize/match.tpl.html","<div ng-hide=\"$select.searchEnab
 $templateCache.put("selectize/no-choice.tpl.html","<div class=\"ui-select-no-choice selectize-dropdown\" ng-show=\"$select.items.length == 0\"><div class=\"selectize-dropdown-content\"><div data-selectable=\"\" ng-transclude=\"\"></div></div></div>");
 $templateCache.put("selectize/select-multiple.tpl.html","<div class=\"ui-select-container selectize-control multi plugin-remove_button\" ng-class=\"{\'open\': $select.open}\"><div class=\"selectize-input\" ng-class=\"{\'focus\': $select.open, \'disabled\': $select.disabled, \'selectize-focus\' : $select.focus}\" ng-click=\"$select.open && !$select.searchEnabled ? $select.toggle($event) : $select.activate()\"><div class=\"ui-select-match\"></div><input type=\"search\" autocomplete=\"off\" tabindex=\"-1\" class=\"ui-select-search\" ng-class=\"{\'ui-select-search-hidden\':!$select.searchEnabled}\" placeholder=\"{{$selectMultiple.getPlaceholder()}}\" ng-model=\"$select.search\" ng-disabled=\"$select.disabled\" aria-expanded=\"{{$select.open}}\" aria-label=\"{{ $select.baseTitle }}\" ondrop=\"return false;\"></div><div class=\"ui-select-choices\"></div><div class=\"ui-select-no-choice\"></div></div>");
 $templateCache.put("selectize/select.tpl.html","<div class=\"ui-select-container selectize-control single\" ng-class=\"{\'open\': $select.open}\"><div class=\"selectize-input\" ng-class=\"{\'focus\': $select.open, \'disabled\': $select.disabled, \'selectize-focus\' : $select.focus}\" ng-click=\"$select.open && !$select.searchEnabled ? $select.toggle($event) : $select.activate()\"><div class=\"ui-select-match\"></div><input type=\"search\" autocomplete=\"off\" tabindex=\"-1\" class=\"ui-select-search ui-select-toggle\" ng-class=\"{\'ui-select-search-hidden\':!$select.searchEnabled}\" ng-click=\"$select.toggle($event)\" placeholder=\"{{$select.placeholder}}\" ng-model=\"$select.search\" ng-hide=\"!$select.isEmpty() && !$select.open\" ng-disabled=\"$select.disabled\" aria-label=\"{{ $select.baseTitle }}\"></div><div class=\"ui-select-choices\"></div><div class=\"ui-select-no-choice\"></div></div>");}]);
-},{}],247:[function(_dereq_,module,exports){
+},{}],377:[function(_dereq_,module,exports){
 !function(e,r){"object"==typeof exports&&"object"==typeof module?module.exports=r():"function"==typeof define&&define.amd?define([],r):"object"==typeof exports?exports.vanillaTextMask=r():e.vanillaTextMask=r()}(this,function(){return function(e){function r(n){if(t[n])return t[n].exports;var o=t[n]={exports:{},id:n,loaded:!1};return e[n].call(o.exports,o,o.exports,r),o.loaded=!0,o.exports}var t={};return r.m=e,r.c=t,r.p="",r(0)}([function(e,r,t){"use strict";function n(e){return e&&e.__esModule?e:{default:e}}function o(e){var r=e.inputElement,t=(0,u.default)(e),n=function(e){var r=e.target.value;return t.update(r)};return r.addEventListener("input",n),t.update(r.value),{textMaskInputElement:t,destroy:function(){r.removeEventListener("input",n)}}}Object.defineProperty(r,"__esModule",{value:!0}),r.conformToMask=void 0,r.maskInput=o;var i=t(2);Object.defineProperty(r,"conformToMask",{enumerable:!0,get:function(){return n(i).default}});var a=t(5),u=n(a);r.default=o},function(e,r){"use strict";Object.defineProperty(r,"__esModule",{value:!0}),r.placeholderChar="_",r.strFunction="function"},function(e,r,t){"use strict";function n(){var e=arguments.length>0&&void 0!==arguments[0]?arguments[0]:l,r=arguments.length>1&&void 0!==arguments[1]?arguments[1]:u,t=arguments.length>2&&void 0!==arguments[2]?arguments[2]:{};if(!(0,i.isArray)(r)){if(("undefined"==typeof r?"undefined":o(r))!==a.strFunction)throw new Error("Text-mask:conformToMask; The mask property must be an array.");r=r(e,t),r=(0,i.processCaretTraps)(r).maskWithoutCaretTraps}var n=t.guide,s=void 0===n||n,f=t.previousConformedValue,d=void 0===f?l:f,c=t.placeholderChar,p=void 0===c?a.placeholderChar:c,v=t.placeholder,h=void 0===v?(0,i.convertMaskToPlaceholder)(r,p):v,m=t.currentCaretPosition,y=t.keepCharPositions,g=s===!1&&void 0!==d,b=e.length,C=d.length,k=h.length,x=r.length,P=b-C,T=P>0,O=m+(T?-P:0),M=O+Math.abs(P);if(y===!0&&!T){for(var w=l,S=O;S<M;S++)h[S]===p&&(w+=p);e=e.slice(0,O)+w+e.slice(O,b)}for(var _=e.split(l).map(function(e,r){return{char:e,isNew:r>=O&&r<M}}),j=b-1;j>=0;j--){var V=_[j].char;if(V!==p){var A=j>=O&&C===x;V===h[A?j-P:j]&&_.splice(j,1)}}var E=l,N=!1;e:for(var F=0;F<k;F++){var I=h[F];if(I===p){if(_.length>0)for(;_.length>0;){var L=_.shift(),R=L.char,J=L.isNew;if(R===p&&g!==!0){E+=p;continue e}if(r[F].test(R)){if(y===!0&&J!==!1&&d!==l&&s!==!1&&T){for(var W=_.length,q=null,z=0;z<W;z++){var B=_[z];if(B.char!==p&&B.isNew===!1)break;if(B.char===p){q=z;break}}null!==q?(E+=R,_.splice(q,1)):F--}else E+=R;continue e}N=!0}g===!1&&(E+=h.substr(F,k));break}E+=I}if(g&&T===!1){for(var D=null,G=0;G<E.length;G++)h[G]===p&&(D=G);E=null!==D?E.substr(0,D+1):l}return{conformedValue:E,meta:{someCharsRejected:N}}}Object.defineProperty(r,"__esModule",{value:!0});var o="function"==typeof Symbol&&"symbol"==typeof Symbol.iterator?function(e){return typeof e}:function(e){return e&&"function"==typeof Symbol&&e.constructor===Symbol&&e!==Symbol.prototype?"symbol":typeof e};r.default=n;var i=t(3),a=t(1),u=[],l=""},function(e,r,t){"use strict";function n(){var e=arguments.length>0&&void 0!==arguments[0]?arguments[0]:s,r=arguments.length>1&&void 0!==arguments[1]?arguments[1]:l.placeholderChar;if(!o(e))throw new Error("Text-mask:convertMaskToPlaceholder; The mask property must be an array.");if(e.indexOf(r)!==-1)throw new Error("Placeholder character must not be used as part of the mask. Please specify a character that is not present in your mask as your placeholder character.\n\n"+("The placeholder character that was received is: "+JSON.stringify(r)+"\n\n")+("The mask that was received is: "+JSON.stringify(e)));return e.map(function(e){return e instanceof RegExp?r:e}).join("")}function o(e){return Array.isArray&&Array.isArray(e)||e instanceof Array}function i(e){return"string"==typeof e||e instanceof String}function a(e){return"number"==typeof e&&void 0===e.length&&!isNaN(e)}function u(e){for(var r=[],t=void 0;t=e.indexOf(f),t!==-1;)r.push(t),e.splice(t,1);return{maskWithoutCaretTraps:e,indexes:r}}Object.defineProperty(r,"__esModule",{value:!0}),r.convertMaskToPlaceholder=n,r.isArray=o,r.isString=i,r.isNumber=a,r.processCaretTraps=u;var l=t(1),s=[],f="[]"},function(e,r){"use strict";function t(e){var r=e.previousConformedValue,t=void 0===r?o:r,i=e.previousPlaceholder,a=void 0===i?o:i,u=e.currentCaretPosition,l=void 0===u?0:u,s=e.conformedValue,f=e.rawValue,d=e.placeholderChar,c=e.placeholder,p=e.indexesOfPipedChars,v=void 0===p?n:p,h=e.caretTrapIndexes,m=void 0===h?n:h;if(0===l||!f.length)return 0;var y=f.length,g=t.length,b=c.length,C=s.length,k=y-g,x=k>0,P=0===g,T=k>1&&!x&&!P;if(T)return l;var O=x&&(t===s||s===c),M=0,w=void 0,S=void 0;if(O)M=l-k;else{var _=s.toLowerCase(),j=f.toLowerCase(),V=j.substr(0,l).split(o),A=V.filter(function(e){return _.indexOf(e)!==-1});S=A[A.length-1];var E=a.substr(0,A.length).split(o).filter(function(e){return e!==d}).length,N=c.substr(0,A.length).split(o).filter(function(e){return e!==d}).length,F=N!==E,I=void 0!==a[A.length-1]&&void 0!==c[A.length-2]&&a[A.length-1]!==d&&a[A.length-1]!==c[A.length-1]&&a[A.length-1]===c[A.length-2];!x&&(F||I)&&E>0&&c.indexOf(S)>-1&&void 0!==f[l]&&(w=!0,S=f[l]);for(var L=v.map(function(e){return _[e]}),R=L.filter(function(e){return e===S}).length,J=A.filter(function(e){return e===S}).length,W=c.substr(0,c.indexOf(d)).split(o).filter(function(e,r){return e===S&&f[r]!==e}).length,q=W+J+R+(w?1:0),z=0,B=0;B<C;B++){var D=_[B];if(M=B+1,D===S&&z++,z>=q)break}}if(x){for(var G=M,H=M;H<=b;H++)if(c[H]===d&&(G=H),c[H]===d||m.indexOf(H)!==-1||H===b)return G}else if(w){for(var K=M-1;K>=0;K--)if(s[K]===S||m.indexOf(K)!==-1||0===K)return K}else for(var Q=M;Q>=0;Q--)if(c[Q-1]===d||m.indexOf(Q)!==-1||0===Q)return Q}Object.defineProperty(r,"__esModule",{value:!0}),r.default=t;var n=[],o=""},function(e,r,t){"use strict";function n(e){return e&&e.__esModule?e:{default:e}}function o(e){var r={previousConformedValue:void 0,previousPlaceholder:void 0};return{state:r,update:function(t){var n=arguments.length>1&&void 0!==arguments[1]?arguments[1]:e,o=n.inputElement,s=n.mask,d=n.guide,m=n.pipe,g=n.placeholderChar,b=void 0===g?v.placeholderChar:g,C=n.keepCharPositions,k=void 0!==C&&C,x=n.showMask,P=void 0!==x&&x;if("undefined"==typeof t&&(t=o.value),t!==r.previousConformedValue){("undefined"==typeof s?"undefined":l(s))===y&&void 0!==s.pipe&&void 0!==s.mask&&(m=s.pipe,s=s.mask);var T=void 0,O=void 0;if(s instanceof Array&&(T=(0,p.convertMaskToPlaceholder)(s,b)),s!==!1){var M=a(t),w=o.selectionEnd,S=r.previousConformedValue,_=r.previousPlaceholder,j=void 0;if(("undefined"==typeof s?"undefined":l(s))===v.strFunction){if(O=s(M,{currentCaretPosition:w,previousConformedValue:S,placeholderChar:b}),O===!1)return;var V=(0,p.processCaretTraps)(O),A=V.maskWithoutCaretTraps,E=V.indexes;O=A,j=E,T=(0,p.convertMaskToPlaceholder)(O,b)}else O=s;var N={previousConformedValue:S,guide:d,placeholderChar:b,pipe:m,placeholder:T,currentCaretPosition:w,keepCharPositions:k},F=(0,c.default)(M,O,N),I=F.conformedValue,L=("undefined"==typeof m?"undefined":l(m))===v.strFunction,R={};L&&(R=m(I,u({rawValue:M},N)),R===!1?R={value:S,rejected:!0}:(0,p.isString)(R)&&(R={value:R}));var J=L?R.value:I,W=(0,f.default)({previousConformedValue:S,previousPlaceholder:_,conformedValue:J,placeholder:T,rawValue:M,currentCaretPosition:w,placeholderChar:b,indexesOfPipedChars:R.indexesOfPipedChars,caretTrapIndexes:j}),q=J===T&&0===W,z=P?T:h,B=q?z:J;r.previousConformedValue=B,r.previousPlaceholder=T,o.value!==B&&(o.value=B,i(o,W))}}}}}function i(e,r){document.activeElement===e&&(g?b(function(){return e.setSelectionRange(r,r,m)},0):e.setSelectionRange(r,r,m))}function a(e){if((0,p.isString)(e))return e;if((0,p.isNumber)(e))return String(e);if(void 0===e||null===e)return h;throw new Error("The 'value' provided to Text Mask needs to be a string or a number. The value received was:\n\n "+JSON.stringify(e))}Object.defineProperty(r,"__esModule",{value:!0});var u=Object.assign||function(e){for(var r=1;r<arguments.length;r++){var t=arguments[r];for(var n in t)Object.prototype.hasOwnProperty.call(t,n)&&(e[n]=t[n])}return e},l="function"==typeof Symbol&&"symbol"==typeof Symbol.iterator?function(e){return typeof e}:function(e){return e&&"function"==typeof Symbol&&e.constructor===Symbol&&e!==Symbol.prototype?"symbol":typeof e};r.default=o;var s=t(4),f=n(s),d=t(2),c=n(d),p=t(3),v=t(1),h="",m="none",y="object",g="undefined"!=typeof navigator&&/Android/i.test(navigator.userAgent),b="undefined"!=typeof requestAnimationFrame?requestAnimationFrame:setTimeout}])});
-},{}],248:[function(_dereq_,module,exports){
-(function(self) {
-  'use strict';
-
-  if (self.fetch) {
-    return
-  }
+},{}],378:[function(_dereq_,module,exports){
+(function (global, factory) {
+  typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
+  typeof define === 'function' && define.amd ? define(['exports'], factory) :
+  (factory((global.WHATWGFetch = {})));
+}(this, (function (exports) { 'use strict';
 
   var support = {
     searchParams: 'URLSearchParams' in self,
     iterable: 'Symbol' in self && 'iterator' in Symbol,
-    blob: 'FileReader' in self && 'Blob' in self && (function() {
-      try {
-        new Blob()
-        return true
-      } catch(e) {
-        return false
-      }
-    })(),
+    blob:
+      'FileReader' in self &&
+      'Blob' in self &&
+      (function() {
+        try {
+          new Blob();
+          return true
+        } catch (e) {
+          return false
+        }
+      })(),
     formData: 'FormData' in self,
     arrayBuffer: 'ArrayBuffer' in self
+  };
+
+  function isDataView(obj) {
+    return obj && DataView.prototype.isPrototypeOf(obj)
   }
 
   if (support.arrayBuffer) {
@@ -101704,22 +106508,20 @@ $templateCache.put("selectize/select.tpl.html","<div class=\"ui-select-container
       '[object Uint32Array]',
       '[object Float32Array]',
       '[object Float64Array]'
-    ]
+    ];
 
-    var isDataView = function(obj) {
-      return obj && DataView.prototype.isPrototypeOf(obj)
-    }
-
-    var isArrayBufferView = ArrayBuffer.isView || function(obj) {
-      return obj && viewClasses.indexOf(Object.prototype.toString.call(obj)) > -1
-    }
+    var isArrayBufferView =
+      ArrayBuffer.isView ||
+      function(obj) {
+        return obj && viewClasses.indexOf(Object.prototype.toString.call(obj)) > -1
+      };
   }
 
   function normalizeName(name) {
     if (typeof name !== 'string') {
-      name = String(name)
+      name = String(name);
     }
-    if (/[^a-z0-9\-#$%&'*+.\^_`|~]/i.test(name)) {
+    if (/[^a-z0-9\-#$%&'*+.^_`|~]/i.test(name)) {
       throw new TypeError('Invalid character in header field name')
     }
     return name.toLowerCase()
@@ -101727,7 +106529,7 @@ $templateCache.put("selectize/select.tpl.html","<div class=\"ui-select-container
 
   function normalizeValue(value) {
     if (typeof value !== 'string') {
-      value = String(value)
+      value = String(value);
     }
     return value
   }
@@ -101736,130 +106538,136 @@ $templateCache.put("selectize/select.tpl.html","<div class=\"ui-select-container
   function iteratorFor(items) {
     var iterator = {
       next: function() {
-        var value = items.shift()
+        var value = items.shift();
         return {done: value === undefined, value: value}
       }
-    }
+    };
 
     if (support.iterable) {
       iterator[Symbol.iterator] = function() {
         return iterator
-      }
+      };
     }
 
     return iterator
   }
 
   function Headers(headers) {
-    this.map = {}
+    this.map = {};
 
     if (headers instanceof Headers) {
       headers.forEach(function(value, name) {
-        this.append(name, value)
-      }, this)
+        this.append(name, value);
+      }, this);
     } else if (Array.isArray(headers)) {
       headers.forEach(function(header) {
-        this.append(header[0], header[1])
-      }, this)
+        this.append(header[0], header[1]);
+      }, this);
     } else if (headers) {
       Object.getOwnPropertyNames(headers).forEach(function(name) {
-        this.append(name, headers[name])
-      }, this)
+        this.append(name, headers[name]);
+      }, this);
     }
   }
 
   Headers.prototype.append = function(name, value) {
-    name = normalizeName(name)
-    value = normalizeValue(value)
-    var oldValue = this.map[name]
-    this.map[name] = oldValue ? oldValue+','+value : value
-  }
+    name = normalizeName(name);
+    value = normalizeValue(value);
+    var oldValue = this.map[name];
+    this.map[name] = oldValue ? oldValue + ', ' + value : value;
+  };
 
   Headers.prototype['delete'] = function(name) {
-    delete this.map[normalizeName(name)]
-  }
+    delete this.map[normalizeName(name)];
+  };
 
   Headers.prototype.get = function(name) {
-    name = normalizeName(name)
+    name = normalizeName(name);
     return this.has(name) ? this.map[name] : null
-  }
+  };
 
   Headers.prototype.has = function(name) {
     return this.map.hasOwnProperty(normalizeName(name))
-  }
+  };
 
   Headers.prototype.set = function(name, value) {
-    this.map[normalizeName(name)] = normalizeValue(value)
-  }
+    this.map[normalizeName(name)] = normalizeValue(value);
+  };
 
   Headers.prototype.forEach = function(callback, thisArg) {
     for (var name in this.map) {
       if (this.map.hasOwnProperty(name)) {
-        callback.call(thisArg, this.map[name], name, this)
+        callback.call(thisArg, this.map[name], name, this);
       }
     }
-  }
+  };
 
   Headers.prototype.keys = function() {
-    var items = []
-    this.forEach(function(value, name) { items.push(name) })
+    var items = [];
+    this.forEach(function(value, name) {
+      items.push(name);
+    });
     return iteratorFor(items)
-  }
+  };
 
   Headers.prototype.values = function() {
-    var items = []
-    this.forEach(function(value) { items.push(value) })
+    var items = [];
+    this.forEach(function(value) {
+      items.push(value);
+    });
     return iteratorFor(items)
-  }
+  };
 
   Headers.prototype.entries = function() {
-    var items = []
-    this.forEach(function(value, name) { items.push([name, value]) })
+    var items = [];
+    this.forEach(function(value, name) {
+      items.push([name, value]);
+    });
     return iteratorFor(items)
-  }
+  };
 
   if (support.iterable) {
-    Headers.prototype[Symbol.iterator] = Headers.prototype.entries
+    Headers.prototype[Symbol.iterator] = Headers.prototype.entries;
   }
 
   function consumed(body) {
     if (body.bodyUsed) {
       return Promise.reject(new TypeError('Already read'))
     }
-    body.bodyUsed = true
+    body.bodyUsed = true;
   }
 
   function fileReaderReady(reader) {
     return new Promise(function(resolve, reject) {
       reader.onload = function() {
-        resolve(reader.result)
-      }
+        resolve(reader.result);
+      };
       reader.onerror = function() {
-        reject(reader.error)
-      }
+        reject(reader.error);
+      };
     })
   }
 
   function readBlobAsArrayBuffer(blob) {
-    var reader = new FileReader()
-    var promise = fileReaderReady(reader)
-    reader.readAsArrayBuffer(blob)
+    var reader = new FileReader();
+    var promise = fileReaderReady(reader);
+    reader.readAsArrayBuffer(blob);
     return promise
   }
 
   function readBlobAsText(blob) {
-    var reader = new FileReader()
-    var promise = fileReaderReady(reader)
-    reader.readAsText(blob)
+    var reader = new FileReader();
+    var promise = fileReaderReady(reader);
+    reader.readAsText(blob);
     return promise
   }
 
   function readArrayBufferAsText(buf) {
-    var view = new Uint8Array(buf)
-    var chars = new Array(view.length)
+    var view = new Uint8Array(buf);
+    var chars = new Array(view.length);
 
     for (var i = 0; i < view.length; i++) {
-      chars[i] = String.fromCharCode(view[i])
+      chars[i] = String.fromCharCode(view[i]);
     }
     return chars.join('')
   }
@@ -101868,51 +106676,51 @@ $templateCache.put("selectize/select.tpl.html","<div class=\"ui-select-container
     if (buf.slice) {
       return buf.slice(0)
     } else {
-      var view = new Uint8Array(buf.byteLength)
-      view.set(new Uint8Array(buf))
+      var view = new Uint8Array(buf.byteLength);
+      view.set(new Uint8Array(buf));
       return view.buffer
     }
   }
 
   function Body() {
-    this.bodyUsed = false
+    this.bodyUsed = false;
 
     this._initBody = function(body) {
-      this._bodyInit = body
+      this._bodyInit = body;
       if (!body) {
-        this._bodyText = ''
+        this._bodyText = '';
       } else if (typeof body === 'string') {
-        this._bodyText = body
+        this._bodyText = body;
       } else if (support.blob && Blob.prototype.isPrototypeOf(body)) {
-        this._bodyBlob = body
+        this._bodyBlob = body;
       } else if (support.formData && FormData.prototype.isPrototypeOf(body)) {
-        this._bodyFormData = body
+        this._bodyFormData = body;
       } else if (support.searchParams && URLSearchParams.prototype.isPrototypeOf(body)) {
-        this._bodyText = body.toString()
+        this._bodyText = body.toString();
       } else if (support.arrayBuffer && support.blob && isDataView(body)) {
-        this._bodyArrayBuffer = bufferClone(body.buffer)
+        this._bodyArrayBuffer = bufferClone(body.buffer);
         // IE 10-11 can't handle a DataView body.
-        this._bodyInit = new Blob([this._bodyArrayBuffer])
+        this._bodyInit = new Blob([this._bodyArrayBuffer]);
       } else if (support.arrayBuffer && (ArrayBuffer.prototype.isPrototypeOf(body) || isArrayBufferView(body))) {
-        this._bodyArrayBuffer = bufferClone(body)
+        this._bodyArrayBuffer = bufferClone(body);
       } else {
-        throw new Error('unsupported BodyInit type')
+        this._bodyText = body = Object.prototype.toString.call(body);
       }
 
       if (!this.headers.get('content-type')) {
         if (typeof body === 'string') {
-          this.headers.set('content-type', 'text/plain;charset=UTF-8')
+          this.headers.set('content-type', 'text/plain;charset=UTF-8');
         } else if (this._bodyBlob && this._bodyBlob.type) {
-          this.headers.set('content-type', this._bodyBlob.type)
+          this.headers.set('content-type', this._bodyBlob.type);
         } else if (support.searchParams && URLSearchParams.prototype.isPrototypeOf(body)) {
-          this.headers.set('content-type', 'application/x-www-form-urlencoded;charset=UTF-8')
+          this.headers.set('content-type', 'application/x-www-form-urlencoded;charset=UTF-8');
         }
       }
-    }
+    };
 
     if (support.blob) {
       this.blob = function() {
-        var rejected = consumed(this)
+        var rejected = consumed(this);
         if (rejected) {
           return rejected
         }
@@ -101926,7 +106734,7 @@ $templateCache.put("selectize/select.tpl.html","<div class=\"ui-select-container
         } else {
           return Promise.resolve(new Blob([this._bodyText]))
         }
-      }
+      };
 
       this.arrayBuffer = function() {
         if (this._bodyArrayBuffer) {
@@ -101934,11 +106742,11 @@ $templateCache.put("selectize/select.tpl.html","<div class=\"ui-select-container
         } else {
           return this.blob().then(readBlobAsArrayBuffer)
         }
-      }
+      };
     }
 
     this.text = function() {
-      var rejected = consumed(this)
+      var rejected = consumed(this);
       if (rejected) {
         return rejected
       }
@@ -101952,116 +106760,121 @@ $templateCache.put("selectize/select.tpl.html","<div class=\"ui-select-container
       } else {
         return Promise.resolve(this._bodyText)
       }
-    }
+    };
 
     if (support.formData) {
       this.formData = function() {
         return this.text().then(decode)
-      }
+      };
     }
 
     this.json = function() {
       return this.text().then(JSON.parse)
-    }
+    };
 
     return this
   }
 
   // HTTP methods whose capitalization should be normalized
-  var methods = ['DELETE', 'GET', 'HEAD', 'OPTIONS', 'POST', 'PUT']
+  var methods = ['DELETE', 'GET', 'HEAD', 'OPTIONS', 'POST', 'PUT'];
 
   function normalizeMethod(method) {
-    var upcased = method.toUpperCase()
-    return (methods.indexOf(upcased) > -1) ? upcased : method
+    var upcased = method.toUpperCase();
+    return methods.indexOf(upcased) > -1 ? upcased : method
   }
 
   function Request(input, options) {
-    options = options || {}
-    var body = options.body
+    options = options || {};
+    var body = options.body;
 
     if (input instanceof Request) {
       if (input.bodyUsed) {
         throw new TypeError('Already read')
       }
-      this.url = input.url
-      this.credentials = input.credentials
+      this.url = input.url;
+      this.credentials = input.credentials;
       if (!options.headers) {
-        this.headers = new Headers(input.headers)
+        this.headers = new Headers(input.headers);
       }
-      this.method = input.method
-      this.mode = input.mode
+      this.method = input.method;
+      this.mode = input.mode;
+      this.signal = input.signal;
       if (!body && input._bodyInit != null) {
-        body = input._bodyInit
-        input.bodyUsed = true
+        body = input._bodyInit;
+        input.bodyUsed = true;
       }
     } else {
-      this.url = String(input)
+      this.url = String(input);
     }
 
-    this.credentials = options.credentials || this.credentials || 'omit'
+    this.credentials = options.credentials || this.credentials || 'same-origin';
     if (options.headers || !this.headers) {
-      this.headers = new Headers(options.headers)
+      this.headers = new Headers(options.headers);
     }
-    this.method = normalizeMethod(options.method || this.method || 'GET')
-    this.mode = options.mode || this.mode || null
-    this.referrer = null
+    this.method = normalizeMethod(options.method || this.method || 'GET');
+    this.mode = options.mode || this.mode || null;
+    this.signal = options.signal || this.signal;
+    this.referrer = null;
 
     if ((this.method === 'GET' || this.method === 'HEAD') && body) {
       throw new TypeError('Body not allowed for GET or HEAD requests')
     }
-    this._initBody(body)
+    this._initBody(body);
   }
 
   Request.prototype.clone = function() {
-    return new Request(this, { body: this._bodyInit })
-  }
+    return new Request(this, {body: this._bodyInit})
+  };
 
   function decode(body) {
-    var form = new FormData()
-    body.trim().split('&').forEach(function(bytes) {
-      if (bytes) {
-        var split = bytes.split('=')
-        var name = split.shift().replace(/\+/g, ' ')
-        var value = split.join('=').replace(/\+/g, ' ')
-        form.append(decodeURIComponent(name), decodeURIComponent(value))
-      }
-    })
+    var form = new FormData();
+    body
+      .trim()
+      .split('&')
+      .forEach(function(bytes) {
+        if (bytes) {
+          var split = bytes.split('=');
+          var name = split.shift().replace(/\+/g, ' ');
+          var value = split.join('=').replace(/\+/g, ' ');
+          form.append(decodeURIComponent(name), decodeURIComponent(value));
+        }
+      });
     return form
   }
 
   function parseHeaders(rawHeaders) {
-    var headers = new Headers()
+    var headers = new Headers();
     // Replace instances of \r\n and \n followed by at least one space or horizontal tab with a space
     // https://tools.ietf.org/html/rfc7230#section-3.2
-    var preProcessedHeaders = rawHeaders.replace(/\r?\n[\t ]+/g, ' ')
+    var preProcessedHeaders = rawHeaders.replace(/\r?\n[\t ]+/g, ' ');
     preProcessedHeaders.split(/\r?\n/).forEach(function(line) {
-      var parts = line.split(':')
-      var key = parts.shift().trim()
+      var parts = line.split(':');
+      var key = parts.shift().trim();
       if (key) {
-        var value = parts.join(':').trim()
-        headers.append(key, value)
+        var value = parts.join(':').trim();
+        headers.append(key, value);
       }
-    })
+    });
     return headers
   }
 
-  Body.call(Request.prototype)
+  Body.call(Request.prototype);
 
   function Response(bodyInit, options) {
     if (!options) {
-      options = {}
+      options = {};
     }
 
-    this.type = 'default'
-    this.status = options.status === undefined ? 200 : options.status
-    this.ok = this.status >= 200 && this.status < 300
-    this.statusText = 'statusText' in options ? options.statusText : 'OK'
-    this.headers = new Headers(options.headers)
-    this.url = options.url || ''
-    this._initBody(bodyInit)
+    this.type = 'default';
+    this.status = options.status === undefined ? 200 : options.status;
+    this.ok = this.status >= 200 && this.status < 300;
+    this.statusText = 'statusText' in options ? options.statusText : 'OK';
+    this.headers = new Headers(options.headers);
+    this.url = options.url || '';
+    this._initBody(bodyInit);
   }
 
-  Body.call(Response.prototype)
+  Body.call(Response.prototype);
 
   Response.prototype.clone = function() {
     return new Response(this._bodyInit, {
@@ -102070,15 +106883,15 @@ $templateCache.put("selectize/select.tpl.html","<div class=\"ui-select-container
       headers: new Headers(this.headers),
       url: this.url
     })
-  }
+  };
 
   Response.error = function() {
-    var response = new Response(null, {status: 0, statusText: ''})
-    response.type = 'error'
+    var response = new Response(null, {status: 0, statusText: ''});
+    response.type = 'error';
     return response
-  }
+  };
 
-  var redirectStatuses = [301, 302, 303, 307, 308]
+  var redirectStatuses = [301, 302, 303, 307, 308];
 
   Response.redirect = function(url, status) {
     if (redirectStatuses.indexOf(status) === -1) {
@@ -102086,59 +106899,109 @@ $templateCache.put("selectize/select.tpl.html","<div class=\"ui-select-container
     }
 
     return new Response(null, {status: status, headers: {location: url}})
+  };
+
+  exports.DOMException = self.DOMException;
+  try {
+    new exports.DOMException();
+  } catch (err) {
+    exports.DOMException = function(message, name) {
+      this.message = message;
+      this.name = name;
+      var error = Error(message);
+      this.stack = error.stack;
+    };
+    exports.DOMException.prototype = Object.create(Error.prototype);
+    exports.DOMException.prototype.constructor = exports.DOMException;
   }
 
-  self.Headers = Headers
-  self.Request = Request
-  self.Response = Response
-
-  self.fetch = function(input, init) {
+  function fetch(input, init) {
     return new Promise(function(resolve, reject) {
-      var request = new Request(input, init)
-      var xhr = new XMLHttpRequest()
+      var request = new Request(input, init);
+
+      if (request.signal && request.signal.aborted) {
+        return reject(new exports.DOMException('Aborted', 'AbortError'))
+      }
+
+      var xhr = new XMLHttpRequest();
+
+      function abortXhr() {
+        xhr.abort();
+      }
 
       xhr.onload = function() {
         var options = {
           status: xhr.status,
           statusText: xhr.statusText,
           headers: parseHeaders(xhr.getAllResponseHeaders() || '')
-        }
-        options.url = 'responseURL' in xhr ? xhr.responseURL : options.headers.get('X-Request-URL')
-        var body = 'response' in xhr ? xhr.response : xhr.responseText
-        resolve(new Response(body, options))
-      }
+        };
+        options.url = 'responseURL' in xhr ? xhr.responseURL : options.headers.get('X-Request-URL');
+        var body = 'response' in xhr ? xhr.response : xhr.responseText;
+        resolve(new Response(body, options));
+      };
 
       xhr.onerror = function() {
-        reject(new TypeError('Network request failed'))
-      }
+        reject(new TypeError('Network request failed'));
+      };
 
       xhr.ontimeout = function() {
-        reject(new TypeError('Network request failed'))
-      }
+        reject(new TypeError('Network request failed'));
+      };
 
-      xhr.open(request.method, request.url, true)
+      xhr.onabort = function() {
+        reject(new exports.DOMException('Aborted', 'AbortError'));
+      };
+
+      xhr.open(request.method, request.url, true);
 
       if (request.credentials === 'include') {
-        xhr.withCredentials = true
+        xhr.withCredentials = true;
       } else if (request.credentials === 'omit') {
-        xhr.withCredentials = false
+        xhr.withCredentials = false;
       }
 
       if ('responseType' in xhr && support.blob) {
-        xhr.responseType = 'blob'
+        xhr.responseType = 'blob';
       }
 
       request.headers.forEach(function(value, name) {
-        xhr.setRequestHeader(name, value)
-      })
+        xhr.setRequestHeader(name, value);
+      });
 
-      xhr.send(typeof request._bodyInit === 'undefined' ? null : request._bodyInit)
+      if (request.signal) {
+        request.signal.addEventListener('abort', abortXhr);
+
+        xhr.onreadystatechange = function() {
+          // DONE (success or failure)
+          if (xhr.readyState === 4) {
+            request.signal.removeEventListener('abort', abortXhr);
+          }
+        };
+      }
+
+      xhr.send(typeof request._bodyInit === 'undefined' ? null : request._bodyInit);
     })
   }
-  self.fetch.polyfill = true
-})(typeof self !== 'undefined' ? self : this);
 
-},{}],249:[function(_dereq_,module,exports){
+  fetch.polyfill = true;
+
+  if (!self.fetch) {
+    self.fetch = fetch;
+    self.Headers = Headers;
+    self.Request = Request;
+    self.Response = Response;
+  }
+
+  exports.Headers = Headers;
+  exports.Request = Request;
+  exports.Response = Response;
+  exports.fetch = fetch;
+
+  Object.defineProperty(exports, '__esModule', { value: true });
+
+})));
+
+},{}],379:[function(_dereq_,module,exports){
 "use strict";
 
 module.exports = function(app) {
@@ -102246,7 +107109,7 @@ module.exports = function(app) {
   ]);
 };
 
-},{}],250:[function(_dereq_,module,exports){
+},{}],380:[function(_dereq_,module,exports){
 "use strict";
 
 var _merge = _dereq_('lodash/merge');
@@ -102486,7 +107349,7 @@ module.exports = function(app) {
   ]);
 };
 
-},{"lodash/merge":227}],251:[function(_dereq_,module,exports){
+},{"lodash/merge":351}],381:[function(_dereq_,module,exports){
 "use strict";
 
 module.exports = function(app) {
@@ -102570,7 +107433,7 @@ module.exports = function(app) {
   ]);
 };
 
-},{}],252:[function(_dereq_,module,exports){
+},{}],382:[function(_dereq_,module,exports){
 "use strict";
 
 var GridUtils = _dereq_('../factories/GridUtils')();
@@ -102664,7 +107527,7 @@ module.exports = function(app) {
   ]);
 };
 
-},{"../factories/GridUtils":303}],253:[function(_dereq_,module,exports){
+},{"../factories/GridUtils":433}],383:[function(_dereq_,module,exports){
 "use strict";
 module.exports = function(app) {
   app.provider('formioComponents', function() {
@@ -102736,7 +107599,7 @@ module.exports = function(app) {
   }]);
 };
 
-},{}],254:[function(_dereq_,module,exports){
+},{}],384:[function(_dereq_,module,exports){
 "use strict";
 
 var GridUtils = _dereq_('../factories/GridUtils')();
@@ -102808,7 +107671,7 @@ module.exports = function(app) {
   ]);
 };
 
-},{"../factories/GridUtils":303}],255:[function(_dereq_,module,exports){
+},{"../factories/GridUtils":433}],385:[function(_dereq_,module,exports){
 "use strict";
 
 module.exports = function(app) {
@@ -102837,7 +107700,7 @@ module.exports = function(app) {
   ]);
 };
 
-},{}],256:[function(_dereq_,module,exports){
+},{}],386:[function(_dereq_,module,exports){
 "use strict";
 
 var createNumberMask = _dereq_('text-mask-addons').createNumberMask;
@@ -102925,7 +107788,7 @@ module.exports = function(app) {
   ]);
 };
 
-},{"lodash/get":198,"lodash/isNil":213,"text-mask-addons":244}],257:[function(_dereq_,module,exports){
+},{"lodash/get":320,"lodash/isNil":336,"text-mask-addons":374}],387:[function(_dereq_,module,exports){
 "use strict";
 
 var GridUtils = _dereq_('../factories/GridUtils')();
@@ -102953,7 +107816,7 @@ module.exports = function(app) {
   ]);
 };
 
-},{"../factories/GridUtils":303}],258:[function(_dereq_,module,exports){
+},{"../factories/GridUtils":433}],388:[function(_dereq_,module,exports){
 "use strict";
 
 var formioUtils = _dereq_('formiojs/utils').default;
@@ -103090,7 +107953,7 @@ module.exports = function(app) {
   ]);
 };
 
-},{"formiojs/utils":33}],259:[function(_dereq_,module,exports){
+},{"formiojs/utils":144}],389:[function(_dereq_,module,exports){
 "use strict";
 
 var _get = _dereq_('lodash/get');
@@ -103208,7 +108071,7 @@ module.exports = function(app) {
   ]);
 };
 
-},{"lodash/get":198}],260:[function(_dereq_,module,exports){
+},{"lodash/get":320}],390:[function(_dereq_,module,exports){
 "use strict";
 
 module.exports = function(app) {
@@ -103460,7 +108323,7 @@ module.exports = function(app) {
   ]);
 };
 
-},{}],261:[function(_dereq_,module,exports){
+},{}],391:[function(_dereq_,module,exports){
 "use strict";
 
 var formioUtils = _dereq_('formiojs/utils').default;
@@ -103884,7 +108747,7 @@ module.exports = function(app) {
   ]);
 };
 
-},{"formiojs/utils":33}],262:[function(_dereq_,module,exports){
+},{"formiojs/utils":144}],392:[function(_dereq_,module,exports){
 "use strict";
 module.exports = function(app) {
   app.config([
@@ -103919,7 +108782,7 @@ module.exports = function(app) {
   ]);
 };
 
-},{}],263:[function(_dereq_,module,exports){
+},{}],393:[function(_dereq_,module,exports){
 "use strict";
 
 var GridUtils = _dereq_('../factories/GridUtils')();
@@ -103981,7 +108844,7 @@ module.exports = function(app) {
   ]);
 };
 
-},{"../factories/GridUtils":303}],264:[function(_dereq_,module,exports){
+},{"../factories/GridUtils":433}],394:[function(_dereq_,module,exports){
 "use strict";
 
 module.exports = function(app) {
@@ -104328,7 +109191,7 @@ module.exports = function(app) {
   ]);
 };
 
-},{}],265:[function(_dereq_,module,exports){
+},{}],395:[function(_dereq_,module,exports){
 "use strict";
 
 var isEmpty = _dereq_('lodash/isEmpty');
@@ -104521,7 +109384,7 @@ module.exports = function(app) {
   ]);
 };
 
-},{"../factories/GridUtils":303,"lodash/isEmpty":206}],266:[function(_dereq_,module,exports){
+},{"../factories/GridUtils":433,"lodash/isEmpty":329}],396:[function(_dereq_,module,exports){
 "use strict";
 
 var GridUtils = _dereq_('../factories/GridUtils')();
@@ -104557,7 +109420,7 @@ module.exports = function(app) {
   ]);
 };
 
-},{"../factories/GridUtils":303}],267:[function(_dereq_,module,exports){
+},{"../factories/GridUtils":433}],397:[function(_dereq_,module,exports){
 "use strict";
 
 
@@ -104651,7 +109514,7 @@ module.exports = function(app) {
   ]);
 };
 
-},{}],268:[function(_dereq_,module,exports){
+},{}],398:[function(_dereq_,module,exports){
 "use strict";
 var app = angular.module('formio');
 
@@ -104696,7 +109559,7 @@ _dereq_('./panel')(app);
 _dereq_('./table')(app);
 _dereq_('./well')(app);
 
-},{"./address":249,"./button":250,"./checkbox":251,"./columns":252,"./components":253,"./container":254,"./content":255,"./currency":256,"./custom":257,"./datagrid":258,"./datetime":259,"./day":260,"./editgrid":261,"./email":262,"./fieldset":263,"./file":264,"./form":265,"./hidden":266,"./htmlelement":267,"./number":269,"./page":270,"./panel":271,"./password":272,"./phonenumber":273,"./radio":274,"./resource":275,"./select":276,"./selectboxes":277,"./signature":278,"./survey":279,"./table":280,"./textarea":281,"./textfield":282,"./time":283,"./well":284}],269:[function(_dereq_,module,exports){
+},{"./address":379,"./button":380,"./checkbox":381,"./columns":382,"./components":383,"./container":384,"./content":385,"./currency":386,"./custom":387,"./datagrid":388,"./datetime":389,"./day":390,"./editgrid":391,"./email":392,"./fieldset":393,"./file":394,"./form":395,"./hidden":396,"./htmlelement":397,"./number":399,"./page":400,"./panel":401,"./password":402,"./phonenumber":403,"./radio":404,"./resource":405,"./select":406,"./selectboxes":407,"./signature":408,"./survey":409,"./table":410,"./textarea":411,"./textfield":412,"./time":413,"./well":414}],399:[function(_dereq_,module,exports){
 "use strict";
 
 var createNumberMask = _dereq_('text-mask-addons').createNumberMask;
@@ -104793,7 +109656,7 @@ module.exports = function(app) {
   ]);
 };
 
-},{"lodash/get":198,"lodash/isNil":213,"text-mask-addons":244}],270:[function(_dereq_,module,exports){
+},{"lodash/get":320,"lodash/isNil":336,"text-mask-addons":374}],400:[function(_dereq_,module,exports){
 "use strict";
 
 module.exports = function(app) {
@@ -104820,7 +109683,7 @@ module.exports = function(app) {
   ]);
 };
 
-},{}],271:[function(_dereq_,module,exports){
+},{}],401:[function(_dereq_,module,exports){
 "use strict";
 
 var GridUtils = _dereq_('../factories/GridUtils')();
@@ -104883,7 +109746,7 @@ module.exports = function(app) {
   ]);
 };
 
-},{"../factories/GridUtils":303}],272:[function(_dereq_,module,exports){
+},{"../factories/GridUtils":433}],402:[function(_dereq_,module,exports){
 "use strict";
 module.exports = function(app) {
   app.config([
@@ -104915,7 +109778,7 @@ module.exports = function(app) {
   ]);
 };
 
-},{}],273:[function(_dereq_,module,exports){
+},{}],403:[function(_dereq_,module,exports){
 "use strict";
 module.exports = function(app) {
   app.config([
@@ -104952,7 +109815,7 @@ module.exports = function(app) {
   ]);
 };
 
-},{}],274:[function(_dereq_,module,exports){
+},{}],404:[function(_dereq_,module,exports){
 "use strict";
 
 
@@ -105005,7 +109868,7 @@ module.exports = function(app) {
   ]);
 };
 
-},{}],275:[function(_dereq_,module,exports){
+},{}],405:[function(_dereq_,module,exports){
 "use strict";
 
 module.exports = function(app) {
@@ -105255,7 +110118,7 @@ module.exports = function(app) {
   ]);
 };
 
-},{}],276:[function(_dereq_,module,exports){
+},{}],406:[function(_dereq_,module,exports){
 "use strict";
 /*eslint max-depth: ["error", 6]*/
 
@@ -105870,7 +110733,7 @@ module.exports = function(app) {
   ]);
 };
 
-},{"lodash/assign":193,"lodash/cloneDeep":194,"lodash/get":198,"lodash/isEqual":207,"lodash/isNil":213,"lodash/mapValues":225,"lodash/set":229}],277:[function(_dereq_,module,exports){
+},{"lodash/assign":312,"lodash/cloneDeep":315,"lodash/get":320,"lodash/isEqual":330,"lodash/isNil":336,"lodash/mapValues":349,"lodash/set":355}],407:[function(_dereq_,module,exports){
 "use strict";
 
 
@@ -105996,7 +110859,7 @@ module.exports = function(app) {
   ]);
 };
 
-},{}],278:[function(_dereq_,module,exports){
+},{}],408:[function(_dereq_,module,exports){
 "use strict";
 
 var SignaturePad = _dereq_('signature_pad');
@@ -106138,7 +111001,7 @@ module.exports = function(app) {
   ]);
 };
 
-},{"signature_pad":243}],279:[function(_dereq_,module,exports){
+},{"signature_pad":372}],409:[function(_dereq_,module,exports){
 "use strict";
 
 
@@ -106199,7 +111062,7 @@ module.exports = function(app) {
   ]);
 };
 
-},{}],280:[function(_dereq_,module,exports){
+},{}],410:[function(_dereq_,module,exports){
 "use strict";
 
 var GridUtils = _dereq_('../factories/GridUtils')();
@@ -106290,7 +111153,7 @@ module.exports = function(app) {
   ]);
 };
 
-},{"../factories/GridUtils":303}],281:[function(_dereq_,module,exports){
+},{"../factories/GridUtils":433}],411:[function(_dereq_,module,exports){
 "use strict";
 
 module.exports = function(app) {
@@ -106431,7 +111294,7 @@ module.exports = function(app) {
   ]);
 };
 
-},{}],282:[function(_dereq_,module,exports){
+},{}],412:[function(_dereq_,module,exports){
 "use strict";
 
 
@@ -106494,7 +111357,7 @@ module.exports = function(app) {
   ]);
 };
 
-},{}],283:[function(_dereq_,module,exports){
+},{}],413:[function(_dereq_,module,exports){
 "use strict";
 
 var moment = _dereq_('moment');
@@ -106567,7 +111430,7 @@ module.exports = function(app) {
   ]);
 };
 
-},{"moment":236}],284:[function(_dereq_,module,exports){
+},{"moment":365}],414:[function(_dereq_,module,exports){
 "use strict";
 
 var GridUtils = _dereq_('../factories/GridUtils')();
@@ -106627,7 +111490,7 @@ module.exports = function(app) {
   ]);
 };
 
-},{"../factories/GridUtils":303}],285:[function(_dereq_,module,exports){
+},{"../factories/GridUtils":433}],415:[function(_dereq_,module,exports){
 "use strict";
 module.exports = function() {
   return {
@@ -106705,7 +111568,7 @@ module.exports = function() {
   };
 };
 
-},{}],286:[function(_dereq_,module,exports){
+},{}],416:[function(_dereq_,module,exports){
 "use strict";
 module.exports = function() {
   return {
@@ -106918,6 +111781,7 @@ module.exports = function() {
         };
 
         $scope.isVisible = function(component, row) {
+          if ($scope.readOnly && component.input && FormioUtils.isEmpty($scope.submission.data[component.key])) return false;
           return FormioUtils.isVisible(
             component,
             row,
@@ -107283,7 +112147,7 @@ module.exports = function() {
   };
 };
 
-},{}],287:[function(_dereq_,module,exports){
+},{}],417:[function(_dereq_,module,exports){
 "use strict";
 module.exports = ['$sce', '$parse', '$compile', function($sce, $parse, $compile) {
   return {
@@ -107300,7 +112164,7 @@ module.exports = ['$sce', '$parse', '$compile', function($sce, $parse, $compile)
   };
 }];
 
-},{}],288:[function(_dereq_,module,exports){
+},{}],418:[function(_dereq_,module,exports){
 "use strict";
 var _get = _dereq_('lodash/get');
 var moment = _dereq_('moment');
@@ -107675,7 +112539,7 @@ module.exports = [
   }
 ];
 
-},{"lodash/get":198,"moment":236}],289:[function(_dereq_,module,exports){
+},{"lodash/get":320,"moment":365}],419:[function(_dereq_,module,exports){
 "use strict";
 module.exports = function() {
   return {
@@ -107691,7 +112555,7 @@ module.exports = function() {
   };
 };
 
-},{}],290:[function(_dereq_,module,exports){
+},{}],420:[function(_dereq_,module,exports){
 "use strict";
 module.exports = [
   'formioComponents',
@@ -107764,7 +112628,7 @@ module.exports = [
   }
 ];
 
-},{}],291:[function(_dereq_,module,exports){
+},{}],421:[function(_dereq_,module,exports){
 "use strict";
 module.exports = function() {
   return {
@@ -107849,7 +112713,7 @@ module.exports = function() {
   };
 };
 
-},{}],292:[function(_dereq_,module,exports){
+},{}],422:[function(_dereq_,module,exports){
 "use strict";
 module.exports = [
   '$compile',
@@ -107868,7 +112732,7 @@ module.exports = [
   }
 ];
 
-},{}],293:[function(_dereq_,module,exports){
+},{}],423:[function(_dereq_,module,exports){
 "use strict";
 module.exports = function() {
   return {
@@ -107878,7 +112742,7 @@ module.exports = function() {
   };
 };
 
-},{}],294:[function(_dereq_,module,exports){
+},{}],424:[function(_dereq_,module,exports){
 "use strict";
 var maskInput = _dereq_('vanilla-text-mask').default;
 var createNumberMask = _dereq_('text-mask-addons').createNumberMask;
@@ -108065,7 +112929,7 @@ module.exports = ['FormioUtils', function(FormioUtils) {
   };
 }];
 
-},{"formiojs/utils":33,"lodash":223,"text-mask-addons":244,"vanilla-text-mask":247}],295:[function(_dereq_,module,exports){
+},{"formiojs/utils":144,"lodash":347,"text-mask-addons":374,"vanilla-text-mask":377}],425:[function(_dereq_,module,exports){
 "use strict";
 module.exports = function() {
   return {
@@ -108094,7 +112958,7 @@ module.exports = function() {
   };
 };
 
-},{}],296:[function(_dereq_,module,exports){
+},{}],426:[function(_dereq_,module,exports){
 "use strict";
 module.exports = function() {
   return {
@@ -108123,7 +112987,7 @@ module.exports = function() {
   };
 };
 
-},{}],297:[function(_dereq_,module,exports){
+},{}],427:[function(_dereq_,module,exports){
 "use strict";
 var _map = _dereq_('lodash/map');
 // Javascript editor directive
@@ -108199,7 +113063,7 @@ module.exports = ['FormioUtils', function(FormioUtils) {
   };
 }];
 
-},{"lodash/map":224}],298:[function(_dereq_,module,exports){
+},{"lodash/map":348}],428:[function(_dereq_,module,exports){
 "use strict";
 module.exports = function() {
   return {
@@ -108231,7 +113095,7 @@ module.exports = function() {
   };
 };
 
-},{}],299:[function(_dereq_,module,exports){
+},{}],429:[function(_dereq_,module,exports){
 "use strict";
 module.exports = function() {
   return {
@@ -108287,7 +113151,7 @@ module.exports = function() {
   };
 };
 
-},{}],300:[function(_dereq_,module,exports){
+},{}],430:[function(_dereq_,module,exports){
 "use strict";
 var isNaN = _dereq_('lodash/isNaN');
 var isFinite = _dereq_('lodash/isFinite');
@@ -108929,7 +113793,7 @@ module.exports = function() {
   };
 };
 
-},{"lodash/isEmpty":206,"lodash/isFinite":208,"lodash/isNaN":212}],301:[function(_dereq_,module,exports){
+},{"lodash/isEmpty":329,"lodash/isFinite":331,"lodash/isNaN":335}],431:[function(_dereq_,module,exports){
 "use strict";
 module.exports = [
   'Formio',
@@ -109126,7 +113990,7 @@ module.exports = [
   }
 ];
 
-},{}],302:[function(_dereq_,module,exports){
+},{}],432:[function(_dereq_,module,exports){
 "use strict";
 var formioUtils = _dereq_('formiojs/utils').default;
 var conformToMask = _dereq_('vanilla-text-mask').conformToMask;
@@ -109459,6 +114323,12 @@ module.exports = function() {
       }
       return true;
     },
+    isEmpty: function(data) {
+      return angular.isArray(data) && data.length === 0
+        || angular.isUndefined(data)
+        || angular.isString(data) && data.trim() === ''
+        || data === null;
+    },
     isVisible: function(component, row, data, hide) {
       // If the component is in the hideComponents array, then hide it by default.
       if (hide && Array.isArray(hide) && (hide.indexOf(component.key) !== -1)) {
@@ -109618,7 +114488,7 @@ module.exports = function() {
   };
 };
 
-},{"formiojs/utils":33,"lodash/filter":197,"lodash/get":198,"vanilla-text-mask":247}],303:[function(_dereq_,module,exports){
+},{"formiojs/utils":144,"lodash/filter":318,"lodash/get":320,"vanilla-text-mask":377}],433:[function(_dereq_,module,exports){
 "use strict";
 module.exports = function() {
   var generic = function(data, options) {
@@ -109745,7 +114615,7 @@ module.exports = function() {
   };
 };
 
-},{}],304:[function(_dereq_,module,exports){
+},{}],434:[function(_dereq_,module,exports){
 "use strict";
 module.exports = [
   '$q',
@@ -109794,7 +114664,7 @@ module.exports = [
   }
 ];
 
-},{}],305:[function(_dereq_,module,exports){
+},{}],435:[function(_dereq_,module,exports){
 "use strict";
 module.exports = [
   'Formio',
@@ -109840,7 +114710,7 @@ module.exports = [
   }
 ];
 
-},{}],306:[function(_dereq_,module,exports){
+},{}],436:[function(_dereq_,module,exports){
 "use strict";
 module.exports = [
   'FormioUtils',
@@ -109849,7 +114719,7 @@ module.exports = [
   }
 ];
 
-},{}],307:[function(_dereq_,module,exports){
+},{}],437:[function(_dereq_,module,exports){
 "use strict";
 module.exports = [
   '$sce',
@@ -109862,7 +114732,7 @@ module.exports = [
   }
 ];
 
-},{}],308:[function(_dereq_,module,exports){
+},{}],438:[function(_dereq_,module,exports){
 "use strict";
 module.exports = function() {
   return function(label, shortcut) {
@@ -109883,7 +114753,7 @@ module.exports = function() {
   };
 };
 
-},{}],309:[function(_dereq_,module,exports){
+},{}],439:[function(_dereq_,module,exports){
 "use strict";
 module.exports = [
   function() {
@@ -109902,7 +114772,7 @@ module.exports = [
   }
 ];
 
-},{}],310:[function(_dereq_,module,exports){
+},{}],440:[function(_dereq_,module,exports){
 "use strict";
 module.exports = [
   'formioTableView',
@@ -109915,7 +114785,7 @@ module.exports = [
   }
 ];
 
-},{}],311:[function(_dereq_,module,exports){
+},{}],441:[function(_dereq_,module,exports){
 "use strict";
 module.exports = [
   'FormioUtils',
@@ -109930,7 +114800,7 @@ module.exports = [
   }
 ];
 
-},{}],312:[function(_dereq_,module,exports){
+},{}],442:[function(_dereq_,module,exports){
 "use strict";
 module.exports = [
   '$filter',
@@ -109987,7 +114857,7 @@ module.exports = [
   }
 ];
 
-},{}],313:[function(_dereq_,module,exports){
+},{}],443:[function(_dereq_,module,exports){
 "use strict";
 module.exports = ['$sce', function($sce) {
   return function(val) {
@@ -109995,7 +114865,7 @@ module.exports = ['$sce', function($sce) {
   };
 }];
 
-},{}],314:[function(_dereq_,module,exports){
+},{}],444:[function(_dereq_,module,exports){
 (function (global){
 "use strict";
 global.jQuery = _dereq_('jquery');
@@ -110014,7 +114884,7 @@ _dereq_('angular-ui-ace/src/ui-ace');
 _dereq_('./formio');
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./formio":315,"angular":9,"angular-ckeditor":undefined,"angular-file-saver":1,"angular-moment":2,"angular-sanitize":4,"angular-ui-ace/src/ui-ace":5,"angular-ui-bootstrap":7,"bootstrap":11,"bootstrap-ui-datetime-picker/dist/datetime-picker":10,"jquery":36,"ng-dialog":238,"ng-file-upload":240,"ui-select/dist/select":246}],315:[function(_dereq_,module,exports){
+},{"./formio":445,"angular":10,"angular-ckeditor":1,"angular-file-saver":2,"angular-moment":3,"angular-sanitize":5,"angular-ui-ace/src/ui-ace":6,"angular-ui-bootstrap":8,"bootstrap":12,"bootstrap-ui-datetime-picker/dist/datetime-picker":11,"jquery":147,"ng-dialog":367,"ng-file-upload":369,"ui-select/dist/select":376}],445:[function(_dereq_,module,exports){
 "use strict";
 _dereq_('./polyfills/polyfills');
 
@@ -110178,7 +115048,7 @@ app.run([
 
 _dereq_('./components');
 
-},{"./components":268,"./directives/customValidator":285,"./directives/formio":286,"./directives/formioBindHtml.js":287,"./directives/formioComponent":288,"./directives/formioComponentTooltip":289,"./directives/formioComponentView":290,"./directives/formioDelete":291,"./directives/formioElement":292,"./directives/formioErrors":293,"./directives/formioMask":294,"./directives/formioMax":295,"./directives/formioMin":296,"./directives/formioScriptEditor":297,"./directives/formioSubmission":298,"./directives/formioSubmissions":299,"./directives/formioWizard":300,"./factories/FormioScope":301,"./factories/FormioUtils":302,"./factories/formioInterceptor":304,"./factories/formioTableView":305,"./filters/flattenComponents":306,"./filters/safehtml":307,"./filters/shortcut":308,"./filters/tableComponents":309,"./filters/tableFieldView":310,"./filters/tableView":311,"./filters/translate":312,"./filters/trusturl":313,"./polyfills/polyfills":317,"./providers/Formio":318}],316:[function(_dereq_,module,exports){
+},{"./components":398,"./directives/customValidator":415,"./directives/formio":416,"./directives/formioBindHtml.js":417,"./directives/formioComponent":418,"./directives/formioComponentTooltip":419,"./directives/formioComponentView":420,"./directives/formioDelete":421,"./directives/formioElement":422,"./directives/formioErrors":423,"./directives/formioMask":424,"./directives/formioMax":425,"./directives/formioMin":426,"./directives/formioScriptEditor":427,"./directives/formioSubmission":428,"./directives/formioSubmissions":429,"./directives/formioWizard":430,"./factories/FormioScope":431,"./factories/FormioUtils":432,"./factories/formioInterceptor":434,"./factories/formioTableView":435,"./filters/flattenComponents":436,"./filters/safehtml":437,"./filters/shortcut":438,"./filters/tableComponents":439,"./filters/tableFieldView":440,"./filters/tableView":441,"./filters/translate":442,"./filters/trusturl":443,"./polyfills/polyfills":447,"./providers/Formio":448}],446:[function(_dereq_,module,exports){
 "use strict";
 'use strict';
 
@@ -110209,13 +115079,13 @@ if (typeof Object.assign != 'function') {
   })();
 }
 
-},{}],317:[function(_dereq_,module,exports){
+},{}],447:[function(_dereq_,module,exports){
 "use strict";
 'use strict';
 
 _dereq_('./Object.assign');
 
-},{"./Object.assign":316}],318:[function(_dereq_,module,exports){
+},{"./Object.assign":446}],448:[function(_dereq_,module,exports){
 "use strict";
 module.exports = function() {
   // The formio class.
@@ -110296,5 +115166,5 @@ module.exports = function() {
   };
 };
 
-},{"formiojs/Formio":26}]},{},[314])(314)
+},{"formiojs/Formio":134}]},{},[444])(444)
 });

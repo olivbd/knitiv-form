@@ -329,6 +329,12 @@ module.exports = function() {
       }
       return true;
     },
+    isEmpty: function(data) {
+      return angular.isArray(data) && data.length === 0
+        || angular.isUndefined(data)
+        || angular.isString(data) && data.trim() === ''
+        || data === null;
+    },
     isVisible: function(component, row, data, hide) {
       // If the component is in the hideComponents array, then hide it by default.
       if (hide && Array.isArray(hide) && (hide.indexOf(component.key) !== -1)) {
