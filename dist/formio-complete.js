@@ -101415,7 +101415,7 @@ module.exports = function() {
         };
 
         $scope.isVisible = function(component, row) {
-          if ($scope.readOnly && component.input && FormioUtils.isEmpty($scope.submission.data[component.key])) return false;
+          if ($scope.readOnly && component.input && $scope.submission && FormioUtils.isEmpty($scope.submission.data[component.key])) return false;
           return FormioUtils.isVisible(
             component,
             row,
