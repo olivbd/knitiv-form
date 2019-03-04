@@ -21,7 +21,7 @@ module.exports = function(app) {
 
           var dateValue = function() {
             // If the date is set, then return the true date value.
-            if ($scope.data[$scope.component.key]) {
+            if ($scope.data && $scope.data[$scope.component.key]) {
               return ($scope.data[$scope.component.key] instanceof Date) ? $scope.data[$scope.component.key] : new Date($scope.data[$scope.component.key]);
             }
 
