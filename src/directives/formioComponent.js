@@ -171,6 +171,13 @@ module.exports = [
                 'text-align': getLabelTextAlign(labelPosition)
               };
             }
+
+            if (component.type === 'datagrid' && angular.isUndefined(labelPosition)) {
+              return {
+                'display': 'block',
+                'margin-bottom': '-10px'
+              };
+            }
           };
 
           $scope.getInputGroupStyles = function(component) {
