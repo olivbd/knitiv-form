@@ -30,6 +30,10 @@ module.exports = ['FormioUtils', function(FormioUtils) {
           mode: 'javascript',
           showIndentGuides: true,
           showPrintMargin: false,
+          workerPath: '/bower_components/ace-builds/src-min-noconflict',
+          modePath:   '/bower_components/ace-builds/src-min-noconflict',
+          themePath:  '/bower_components/ace-builds/src-min-noconflict',
+          basePath:   '/bower_components/ace-builds/src-min-noconflict',
           onLoad: function(editor) {
             // Disable message: 'Automatically scrolling cursor into view after selection change this will be disabled in the next version set editor.$blockScrolling = Infinity to disable this message'
             editor.$blockScrolling = Infinity;
@@ -38,7 +42,7 @@ module.exports = ['FormioUtils', function(FormioUtils) {
             /* eslint-disable no-undef*/
             var tools = ace.require('ace/ext/language_tools');
             /* eslint-enable  no-undef*/
-            if (tools.completed !== true) {
+            if (tools && tools.completed !== true) {
                 tools.completed   = true;
                 tools.addCompleter({
                   getCompletions: function(editor, session, pos, prefix, callback) {
