@@ -34,6 +34,8 @@
       aria-describedby="{{componentId + 'Desc'}}"
       ng-required="isRequired(component)"
       custom-validator="component.validate.custom"
+      ng-true-value="'{{ component.trueValue || true }}'"
+      ng-false-value="'{{ component.falseValue || false }}'"
       ng-style="getOptionInputStyles(component)"
     >
     <span ng-if="labelVisible() && !topOrLeftOptionLabel(component)">

@@ -12,8 +12,8 @@ module.exports = function(app) {
         controller: ['$scope', '$timeout', 'FormioUtils', function($scope, $timeout, FormioUtils) {
           if ($scope.options && $scope.options.building) return;
           var boolean = {
-            true: true,
-            false: false
+            true: $scope.component.trueValue || true,
+            false: $scope.component.falseValue || false
           };
 
           var defaultValue = $scope.component.hasOwnProperty('defaultValue')
@@ -65,7 +65,9 @@ module.exports = function(app) {
           clearOnHide: true,
           validate: {
             required: false
-          }
+          },
+          trueValue: undefined,
+          falseValue: undefined
         }
       });
     }
