@@ -208,13 +208,14 @@ module.exports = function() {
           return !form.$valid;
         };
 
-        $scope.isVisible = function(component, row) {
+        $scope.isVisible = function(component, row, form) {
           if ($scope.readOnly && component.input && $scope.submission && FormioUtils.isEmpty($scope.submission.data[component.key])) return false;
           return FormioUtils.isVisible(
             component,
             row,
             $scope.submission ? $scope.submission.data : null,
-            $scope.hideComponents
+            $scope.hideComponents,
+            form
           );
         };
 

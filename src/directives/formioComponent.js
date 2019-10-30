@@ -71,13 +71,14 @@ module.exports = [
           };
 
           // See if this component is visible or not.
-          $scope.isVisible = function(component, row) {
+          $scope.isVisible = function(component, row, form) {
             if ($scope.options && $scope.options.building) return true;
             return FormioUtils.isVisible(
               component,
               row,
               $scope.submission ? $scope.submission.data : null,
-              $scope.hideComponents
+              $scope.hideComponents,
+              form
             );
           };
 

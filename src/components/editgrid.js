@@ -325,7 +325,7 @@ module.exports = function(app) {
       '            formio="formio"' +
       '            submission="submission"' +
       '            hide-components="hideComponents"' +
-      '            ng-if="options.building ? \'::true\' : isVisible(col, rowData)"' +
+      '            ng-if="options.building ? \'::true\' : isVisible(col, rowData, form)"' +
       '            form-name="formName"' +
       '            read-only="isDisabled(col, rowData)"' +
       '            grid-row="rowIndex"' +
@@ -370,7 +370,7 @@ module.exports = function(app) {
         var data = $scope.data[$scope.component.key];
         var visible = false;
         angular.forEach(data, function(rowData) {
-          visible = (visible || FormioUtils.isVisible(component, rowData, $scope.data, $scope.hideComponents));
+          visible = (visible || FormioUtils.isVisible(component, rowData, $scope.data, $scope.hideComponents, $scope.form));
         });
         return visible;
       };

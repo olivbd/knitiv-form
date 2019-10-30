@@ -15,12 +15,13 @@ module.exports = function() {
         $scope,
         FormioUtils
       ) {
-        $scope.isVisible = function(component, row) {
+        $scope.isVisible = function(component, row, form) {
           return FormioUtils.isVisible(
             component,
             row,
             $scope.submission ? $scope.submission.data : null,
-            $scope.ignore
+            $scope.ignore,
+            form
           );
         };
       }

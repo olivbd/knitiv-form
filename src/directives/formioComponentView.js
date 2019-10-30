@@ -28,12 +28,13 @@ module.exports = [
         ) {
           // Set the form url.
           $scope.formUrl = $scope.form ? Formio.getProjectUrl() + '/form/' + $scope.form._id.toString() : '';
-          $scope.isVisible = function(component, row) {
+          $scope.isVisible = function(component, row, form) {
             return FormioUtils.isVisible(
               component,
               row,
               $scope.submission ? $scope.submission.data : null,
-              $scope.hideComponents
+              $scope.hideComponents,
+              form
             );
           };
 

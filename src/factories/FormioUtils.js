@@ -314,8 +314,8 @@ module.exports = function() {
     formatAsCurrency: formioUtils.formatAsCurrency,
     checkCalculated: formioUtils.checkCalculated,
     escapeRegExCharacters: formioUtils.escapeRegExCharacters,
-    checkVisible: function(component, row, data) {
-      var visible = formioUtils.checkCondition(component, row, data);
+    checkVisible: function(component, row, data, form) {
+      var visible = formioUtils.checkCondition(component, row, data, form);
       if (!visible) {
         if (!component.hasOwnProperty('clearOnHide') || component.clearOnHide.toString() === 'true') {
           if (row && row.hasOwnProperty(component.key)) {
@@ -335,13 +335,13 @@ module.exports = function() {
         || angular.isString(data) && data.trim() === ''
         || data === null;
     },
-    isVisible: function(component, row, data, hide) {
+    isVisible: function(component, row, data, hide, form) {
       // If the component is in the hideComponents array, then hide it by default.
       if (hide && Array.isArray(hide) && (hide.indexOf(component.key) !== -1)) {
         return false;
       }
 
-      return this.checkVisible(component, row, data);
+      return this.checkVisible(component, row, data, form);
     },
     flattenComponents: formioUtils.flattenComponents,
     eachComponent: formioUtils.eachComponent,
